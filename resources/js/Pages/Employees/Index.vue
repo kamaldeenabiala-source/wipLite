@@ -1,133 +1,301 @@
+<script setup>
+import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import { ref, onMounted } from 'vue';
+import { FilterMatchMode } from '@primevue/core/api';
+import { useToast } from 'primevue/usetoast';
+import { ProductService } from '@/service/ProductService';
+
+defineProps({
+    employees:Array
+})
+
+onMounted(() => {
+    ProductService.getProducts().then((data) => (products.value = data));
+});
+
+const toast = useToast();
+const dt = ref();
+const products = ref();
+const productDialog = ref(false);
+const deleteProductDialog = ref(false);
+const deleteProductsDialog = ref(false);
+const product = ref({});
+const selectedProducts = ref();
+const filters = ref({
+    'global': {value: null, matchMode: FilterMatchMode.CONTAINS},
+});
+const submitted = ref(false);
+const statuses = ref([
+    {label: 'INSTOCK', value: 'instock'},
+    {label: 'LOWSTOCK', value: 'lowstock'},
+    {label: 'OUTOFSTOCK', value: 'outofstock'}
+]);
+
+const formatCurrency = (value) => {
+    if(value)
+        return value.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
+    return;
+};
+const openNew = () => {
+    product.value = {};
+    submitted.value = false;
+    productDialog.value = true;
+};
+const hideDialog = () => {
+    productDialog.value = false;
+    submitted.value = false;
+};
+const saveProduct = () => {
+    submitted.value = true;
+
+    if (product?.value.name?.trim()) {
+        if (product.value.id) {
+            product.value.inventoryStatus = product.value.inventoryStatus.value ? product.value.inventoryStatus.value : product.value.inventoryStatus;
+            products.value[findIndexById(product.value.id)] = product.value;
+            toast.add({severity:'success', summary: 'Successful', detail: 'Product Updated', life: 3000});
+        }
+        else {
+            product.value.id = createId();
+            product.value.code = createId();
+            product.value.image = 'product-placeholder.svg';
+            product.value.inventoryStatus = product.value.inventoryStatus ? product.value.inventoryStatus.value : 'INSTOCK';
+            products.value.push(product.value);
+            toast.add({severity:'success', summary: 'Successful', detail: 'Product Created', life: 3000});
+        }
+
+        productDialog.value = false;
+        product.value = {};
+    }
+};
+const editProduct = (prod) => {
+    product.value = {...prod};
+    productDialog.value = true;
+};
+const confirmDeleteProduct = (prod) => {
+    product.value = prod;
+    deleteProductDialog.value = true;
+};
+const deleteProduct = () => {
+    products.value = products.value.filter(val => val.id !== product.value.id);
+    deleteProductDialog.value = false;
+    product.value = {};
+    toast.add({severity:'success', summary: 'Successful', detail: 'Product Deleted', life: 3000});
+};
+const findIndexById = (id) => {
+    let index = -1;
+    for (let i = 0; i < products.value.length; i++) {
+        if (products.value[i].id === id) {
+            index = i;
+            break;
+        }
+    }
+
+    return index;
+};
+const createId = () => {
+    let id = '';
+    var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    for ( var i = 0; i < 5; i++ ) {
+        id += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return id;
+}
+const exportCSV = () => {
+    dt.value.exportCSV();
+};
+const confirmDeleteSelected = () => {
+    deleteProductsDialog.value = true;
+};
+const deleteSelectedProducts = () => {
+    products.value = products.value.filter(val => !selectedProducts.value.includes(val));
+    deleteProductsDialog.value = false;
+    selectedProducts.value = null;
+    toast.add({severity:'success', summary: 'Successful', detail: 'Products Deleted', life: 3000});
+};
+
+const getStatusLabel = (status) => {
+    switch (status) {
+        case 'INSTOCK':
+            return 'success';
+
+        case 'LOWSTOCK':
+            return 'warn';
+
+        case 'OUTOFSTOCK':
+            return 'danger';
+
+        default:
+            return null;
+    }
+};
+
+
+
+</script>
+
 <template>
-  <div class="min-h-screen bg-slate-50 flex">
-    <!-- Sidebar (Identique au Dashboard pour la cohérence) -->
-    <aside class="w-64 bg-white border-r border-slate-200 flex flex-col">
-      <div class="p-6">
-        <h1 class="text-2xl font-bold text-indigo-600 tracking-tight">WIPIL</h1>
-        <p class="text-xs text-slate-400 uppercase font-semibold mt-1">Administrateur</p>
-      </div>
+    <AuthenticatedLayout>
+        <h1>Gestion des employees</h1>
+        <p>{{ employees }}</p>
 
-      <nav class="flex-1 px-4 space-y-2">
-        <a href="/dashboard/admin" class="flex items-center space-x-3 text-slate-600 hover:bg-slate-100 p-3 rounded-xl transition-all">
-          <LayoutDashboardIcon class="w-5 h-5" />
-          <span class="font-medium">Tableau de bord</span>
-        </a>
-        <a href="#" class="flex items-center space-x-3 bg-indigo-600 text-white p-3 rounded-xl shadow-lg shadow-indigo-100">
-          <UsersIcon class="w-5 h-5" />
-          <span class="font-medium">Utilisateurs</span>
-        </a>
-        <!-- ... autres liens ... -->
-      </nav>
-    </aside>
+    <!-- <div>
+        <div class="card">
+            <Toolbar class="mb-6">
+                <template #start>
+                    <Button label="New" icon="pi pi-plus" class="mr-2" @click="openNew" />
+                    <Button label="Delete" icon="pi pi-trash" severity="danger" variant="outlined" @click="confirmDeleteSelected" :disabled="!selectedProducts || !selectedProducts.length" />
+                </template>
 
-    <!-- Main Content -->
-    <main class="flex-1 p-8 overflow-y-auto">
-      <!-- Header -->
-      <header class="flex justify-between items-center mb-8">
-        <div>
-          <h2 class="text-3xl font-bold text-slate-800">Gestion des Utilisateurs</h2>
-          <p class="text-slate-500 mt-1">{{ users.length }} utilisateurs au total</p>
+                <template #end>
+                    <FileUpload mode="basic" accept="image/*" :maxFileSize="1000000" label="Import" customUpload chooseLabel="Import" class="mr-2" auto :chooseButtonProps="{ severity: 'secondary' }" />
+                    <Button label="Export" icon="pi pi-upload" severity="secondary" @click="exportCSV($event)" />
+                </template>
+            </Toolbar>
+
+            <DataTable
+                ref="dt"
+                v-model:selection="selectedProducts"
+                :value="products"
+                dataKey="id"
+                :paginator="true"
+                :rows="10"
+                :filters="filters"
+                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+                :rowsPerPageOptions="[5, 10, 25]"
+                currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products"
+            >
+                <template #header>
+                    <div class="flex flex-wrap gap-2 items-center justify-between">
+                        <h4 class="m-0">Manage Products</h4>
+                        <IconField>
+                            <InputIcon>
+                                <i class="pi pi-search" />
+                            </InputIcon>
+                            <InputText v-model="filters['global'].value" placeholder="Search..." />
+                        </IconField>
+                    </div>
+                </template>
+
+                <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
+                <Column field="code" header="Code" sortable style="min-width: 12rem"></Column>
+                <Column field="name" header="Name" sortable style="min-width: 16rem"></Column>
+                <Column header="Image">
+                    <template #body="slotProps">
+                        <img :src="`https://primefaces.org/cdn/primevue/images/product/${slotProps.data.image}`" :alt="slotProps.data.image" class="rounded" style="width: 64px" />
+                    </template>
+                </Column>
+                <Column field="price" header="Price" sortable style="min-width: 8rem">
+                    <template #body="slotProps">
+                        {{ formatCurrency(slotProps.data.price) }}
+                    </template>
+                </Column>
+                <Column field="category" header="Category" sortable style="min-width: 10rem"></Column>
+                <Column field="rating" header="Reviews" sortable style="min-width: 12rem">
+                    <template #body="slotProps">
+                        <Rating :modelValue="slotProps.data.rating" :readonly="true" />
+                    </template>
+                </Column>
+                <Column field="inventoryStatus" header="Status" sortable style="min-width: 12rem">
+                    <template #body="slotProps">
+                        <Tag :value="slotProps.data.inventoryStatus" :severity="getStatusLabel(slotProps.data.inventoryStatus)" />
+                    </template>
+                </Column>
+                <Column :exportable="false" style="min-width: 12rem">
+                    <template #body="slotProps">
+                        <Button icon="pi pi-pencil" variant="outlined" rounded class="mr-2" @click="editProduct(slotProps.data)" />
+                        <Button icon="pi pi-trash" variant="outlined" rounded severity="danger" @click="confirmDeleteProduct(slotProps.data)" />
+                    </template>
+                </Column>
+            </DataTable>
         </div>
-        <button class="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-100 transition-all">
-          <UserPlusIcon class="w-5 h-5" />
-          <span>Nouvel Utilisateur</span>
-        </button>
-      </header>
 
-      <!-- Table Section -->
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div class="p-6 border-b border-slate-50 flex justify-between items-center bg-white">
-          <h3 class="font-bold text-slate-700">Liste des Utilisateurs</h3>
+        <Dialog v-model:visible="productDialog" :style="{ width: '450px' }" header="Product Details" :modal="true">
+            <div class="flex flex-col gap-6">
+                <img v-if="product.image" :src="`https://primefaces.org/cdn/primevue/images/product/${product.image}`" :alt="product.image" class="block m-auto pb-4" />
+                <div>
+                    <label for="name" class="block font-bold mb-3">Name</label>
+                    <InputText id="name" v-model.trim="product.name" required="true" autofocus :invalid="submitted && !product.name" fluid />
+                    <small v-if="submitted && !product.name" class="text-red-500">Name is required.</small>
+                </div>
+                <div>
+                    <label for="description" class="block font-bold mb-3">Description</label>
+                    <Textarea id="description" v-model="product.description" required="true" rows="3" cols="20" fluid />
+                </div>
+                <div>
+                    <label for="inventoryStatus" class="block font-bold mb-3">Inventory Status</label>
+                    <Select id="inventoryStatus" v-model="product.inventoryStatus" :options="statuses" optionLabel="label" placeholder="Select a Status" fluid></Select>
+                </div>
 
-          <!-- Search Bar -->
-          <div class="relative w-80">
-            <SearchIcon class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Rechercher par nom ou matricule..."
-              class="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
-            />
-          </div>
-        </div>
+                <div>
+                    <span class="block font-bold mb-4">Category</span>
+                    <div class="grid grid-cols-12 gap-4">
+                        <div class="flex items-center gap-2 col-span-6">
+                            <RadioButton id="category1" v-model="product.category" name="category" value="Accessories" />
+                            <label for="category1">Accessories</label>
+                        </div>
+                        <div class="flex items-center gap-2 col-span-6">
+                            <RadioButton id="category2" v-model="product.category" name="category" value="Clothing" />
+                            <label for="category2">Clothing</label>
+                        </div>
+                        <div class="flex items-center gap-2 col-span-6">
+                            <RadioButton id="category3" v-model="product.category" name="category" value="Electronics" />
+                            <label for="category3">Electronics</label>
+                        </div>
+                        <div class="flex items-center gap-2 col-span-6">
+                            <RadioButton id="category4" v-model="product.category" name="category" value="Fitness" />
+                            <label for="category4">Fitness</label>
+                        </div>
+                    </div>
+                </div>
 
-        <div class="overflow-x-auto">
-          <table class="w-full text-left">
-            <thead class="bg-slate-50/50">
-              <tr>
-                <th class="px-6 py-4 text-xs uppercase font-bold text-slate-500 tracking-wider">Matricule</th>
-                <th class="px-6 py-4 text-xs uppercase font-bold text-slate-500 tracking-wider">Nom</th>
-                <th class="px-6 py-4 text-xs uppercase font-bold text-slate-500 tracking-wider">Rôle</th>
-                <th class="px-6 py-4 text-xs uppercase font-bold text-slate-500 tracking-wider">Statut</th>
-                <th class="px-6 py-4 text-xs uppercase font-bold text-slate-500 tracking-wider">Campagne</th>
-                <th class="px-6 py-4 text-xs uppercase font-bold text-slate-500 tracking-wider">Créé le</th>
-                <th class="px-6 py-4 text-xs uppercase font-bold text-slate-500 tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-              <tr v-for="user in users" :key="user.matricule" class="hover:bg-slate-50/80 transition-colors group">
-                <td class="px-6 py-4">
-                  <span class="font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded text-sm">
-                    {{ user.matricule }}
-                  </span>
-                </td>
-                <td class="px-6 py-4 font-semibold text-slate-700">{{ user.nom }}</td>
-                <td class="px-6 py-4">
-                  <span :class="['px-3 py-1 rounded-full text-xs font-bold', getRoleClass(user.role)]">
-                    {{ user.role }}
-                  </span>
-                </td>
-                <td class="px-6 py-4">
-                  <span :class="['px-2.5 py-0.5 rounded text-xs font-bold ring-1 ring-inset', user.statut === 'Actif' ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' : 'bg-rose-50 text-rose-700 ring-rose-600/20']">
-                    {{ user.statut }}
-                  </span>
-                </td>
-                <td class="px-6 py-4 text-sm text-slate-500">{{ user.campagne }}</td>
-                <td class="px-6 py-4 text-sm text-slate-500">{{ user.cree_le }}</td>
-                <td class="px-6 py-4">
-                  <div class="flex items-center space-x-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button class="p-1.5 hover:bg-white hover:shadow-sm rounded-lg text-slate-400 hover:text-indigo-600 transition-all">
-                      <Edit3Icon class="w-4 h-4" />
-                    </button>
-                    <button class="p-1.5 hover:bg-white hover:shadow-sm rounded-lg text-slate-400 hover:text-rose-600 transition-all">
-                      <Trash2Icon class="w-4 h-4" />
-                    </button>
-                    <button class="p-1.5 hover:bg-white hover:shadow-sm rounded-lg text-slate-400 hover:text-slate-600 transition-all">
-                      <MoreVerticalIcon class="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </main>
-  </div>
+                <div class="grid grid-cols-12 gap-4">
+                    <div class="col-span-6">
+                        <label for="price" class="block font-bold mb-3">Price</label>
+                        <InputNumber id="price" v-model="product.price" mode="currency" currency="USD" locale="en-US" fluid />
+                    </div>
+                    <div class="col-span-6">
+                        <label for="quantity" class="block font-bold mb-3">Quantity</label>
+                        <InputNumber id="quantity" v-model="product.quantity" integeronly fluid />
+                    </div>
+                </div>
+            </div>
+
+            <template #footer>
+                <Button label="Cancel" icon="pi pi-times" text @click="hideDialog" />
+                <Button label="Save" icon="pi pi-check" @click="saveProduct" />
+            </template>
+        </Dialog>
+
+        <Dialog v-model:visible="deleteProductDialog" :style="{ width: '450px' }" header="Confirm" :modal="true">
+            <div class="flex items-center gap-4">
+                <i class="pi pi-exclamation-triangle !text-3xl" />
+                <span v-if="product"
+                    >Are you sure you want to delete <b>{{ product.name }}</b
+                    >?</span
+                >
+            </div>
+            <template #footer>
+                <Button label="No" icon="pi pi-times" text @click="deleteProductDialog = false" severity="secondary" variant="text" />
+                <Button label="Yes" icon="pi pi-check" @click="deleteProduct" severity="danger" />
+            </template>
+        </Dialog>
+
+        <Dialog v-model:visible="deleteProductsDialog" :style="{ width: '450px' }" header="Confirm" :modal="true">
+            <div class="flex items-center gap-4">
+                <i class="pi pi-exclamation-triangle !text-3xl" />
+                <span v-if="product">Are you sure you want to delete the selected products?</span>
+            </div>
+            <template #footer>
+                <Button label="No" icon="pi pi-times" text @click="deleteProductsDialog = false" severity="secondary" variant="text" />
+                <Button label="Yes" icon="pi pi-check" text @click="deleteSelectedProducts" severity="danger" />
+            </template>
+        </Dialog>
+	</div> -->
+
+
+
+    </AuthenticatedLayout>
 </template>
 
-<script setup>
-import {
-  LayoutDashboardIcon, UsersIcon, UserPlusIcon,
-  SearchIcon, Edit3Icon, Trash2Icon, MoreVerticalIcon
-} from 'lucide-vue-next';
-
-// Données en dur conformes à l'image
-const users = [
-  { matricule: 'ADM-001', nom: 'Jean Dupont', role: 'Admin', statut: 'Actif', campagne: '-', cree_le: '2024-01-15' },
-  { matricule: 'CP-003', nom: 'Marie Martin', role: 'Chef de Plateau', statut: 'Actif', campagne: 'Assurance Auto', cree_le: '2024-02-10' },
-  { matricule: 'SUP-012', nom: 'Pierre Dubois', role: 'Superviseur', statut: 'Actif', campagne: 'Crédit Conso', cree_le: '2024-03-05' },
-  { matricule: 'TC-045', nom: 'Alice Durand', role: 'Téléconseiller', statut: 'Actif', campagne: 'Assurance Auto', cree_le: '2024-04-12' },
-  { matricule: 'TC-087', nom: 'Bob Mercier', role: 'Téléconseiller', statut: 'Inactif', campagne: 'Mutuelle Santé', cree_le: '2024-01-20' },
-  { matricule: 'SUP-018', nom: 'Sophie Laurent', role: 'Superviseur', statut: 'Actif', campagne: 'Assurance Auto', cree_le: '2024-02-28' },
-];
-
-const getRoleClass = (role) => {
-  switch (role) {
-    case 'Admin': return 'bg-slate-100 text-slate-700';
-    case 'Chef de Plateau': return 'bg-indigo-100 text-indigo-700';
-    case 'Superviseur': return 'bg-emerald-100 text-emerald-700';
-    case 'Téléconseiller': return 'bg-amber-100 text-amber-700';
-    default: return 'bg-slate-100 text-slate-700';
-  }
-};
-</script>

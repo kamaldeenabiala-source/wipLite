@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import Button from "primevue/button";
 import { useToast } from 'primevue/usetoast';
 import Toast from 'primevue/toast';
@@ -35,6 +35,7 @@ onMounted(()=>{
                     </div>
                 </div>
             </div>
+         <Link href="/employees">Employees</Link>
         </div>
     </AuthenticatedLayout>
 </template>
