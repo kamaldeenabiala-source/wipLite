@@ -69,7 +69,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('planning/history', [PlanningAssignmentController::class, 'history'])->middleware('role:cp,admin')->name('planning.history');
     Route::post('planning/assignments/{id}/validate', [PlanningAssignmentController::class, 'validateAssignment'])->middleware('role:cp,admin')->name('planning.assignments.validate');
     Route::post('planning/assignments/bulk-validate', [PlanningAssignmentController::class, 'bulkValidate'])->middleware('role:cp,admin')->name('planning.assignments.bulk-validate');
+    Route::post('planning/assignments/validate-all', [PlanningAssignmentController::class, 'validateAll'])->middleware('role:cp,admin')->name('planning.assignments.validate-all');
     Route::post('planning/assignments/{id}/suspend', [PlanningAssignmentController::class, 'suspendAssignment'])->middleware('role:cp,admin')->name('planning.assignments.suspend');
+    Route::post('planning/assignments/{id}/terminate', [PlanningAssignmentController::class, 'terminateAssignment'])->middleware('role:cp,admin')->name('planning.assignments.terminate');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

@@ -7,7 +7,7 @@ import Tag from "primevue/tag";
 import Dialog from "primevue/dialog";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
-import { UserPlus, Clock, Eye, Calendar, CheckCircle, AlertCircle } from "lucide-vue-next";
+import { UserPlus, Clock, Eye, Calendar, CheckCircle, AlertCircle, PauseCircle, XCircle } from "lucide-vue-next";
 
 const props = defineProps({
     supervisorAssignments: Array,
@@ -33,6 +33,14 @@ const viewTeleconseillers = (supervisorData) => {
 
 const validateAssignment = (id) => {
     router.post(route('planning.assignments.validate', id));
+};
+
+const suspendAssignment = (id) => {
+    router.post(route('planning.assignments.suspend', id));
+};
+
+const terminateAssignment = (id) => {
+    router.post(route('planning.assignments.terminate', id));
 };
 </script>
 
@@ -63,8 +71,18 @@ const validateAssignment = (id) => {
                         <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm">
                             {{ item.supervisor.name.substring(0, 2).toUpperCase() }}
                         </div>
-                        <div>
-                            <h3 class="font-bold text-slate-800">{{ item.supervisor.name }}</h3>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-bold text-slate-800">{{ item.supervisor.name }}</h3>
+                                <div v-if="item.assignments.length > 0" class="flex items-center gap-1.5 bg-green-50 text-green-600 px-2 py-0.5 rounded-full">
+                                    <CheckCircle class="w-3 h-3" />
+                                    <span class="text-[10px] font-black">Planning assigné</span>
+                                </div>
+                                <div v-else class="flex items-center gap-1.5 bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">
+                                    <AlertCircle class="w-3 h-3" />
+                                    <span class="text-[10px] font-black">Aucun planning</span>
+                                </div>
+                            </div>
                             <p class="text-xs text-slate-400 uppercase font-black">Superviseur</p>
                         </div>
                     </div>
@@ -87,12 +105,22 @@ const validateAssignment = (id) => {
                                 </p>
                             </div>
                         </div>
-                        <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2">
                             <Tag :severity="getStatusLabel(assignment.status)" :value="assignment.status.toUpperCase()" class="!text-[10px] !font-black !px-3" />
-                            <Button v-if="assignment.status === 'en attente'" @click="validateAssignment(assignment.id)" class="!bg-green-600 !border-none !text-white !px-3 !py-1.5 !text-xs !font-bold !rounded-lg flex items-center gap-1">
-                                <CheckCircle class="w-3 h-3" />
-                                Valider
-                            </Button>
+                            <div class="flex items-center gap-1.5">
+                                <Button v-if="assignment.status === 'en attente'" @click="validateAssignment(assignment.id)" class="!bg-green-600 !border-none !text-white !px-2.5 !py-1.5 !text-[10px] !font-bold !rounded-lg flex items-center gap-1">
+                                    <CheckCircle class="w-3 h-3" />
+                                    Valider
+                                </Button>
+                                <Button v-if="['validé', 'en attente'].includes(assignment.status)" @click="suspendAssignment(assignment.id)" class="!bg-amber-600 !border-none !text-white !px-2.5 !py-1.5 !text-[10px] !font-bold !rounded-lg flex items-center gap-1">
+                                    <PauseCircle class="w-3 h-3" />
+                                    Suspendre
+                                </Button>
+                                <Button v-if="['validé', 'suspendu', 'en attente'].includes(assignment.status)" @click="terminateAssignment(assignment.id)" class="!bg-red-600 !border-none !text-white !px-2.5 !py-1.5 !text-[10px] !font-bold !rounded-lg flex items-center gap-1">
+                                    <XCircle class="w-3 h-3" />
+                                    Terminer
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -141,12 +169,22 @@ const validateAssignment = (id) => {
                             <Tag :severity="getStatusLabel(data.status)" :value="data.status.toUpperCase()" class="!text-[10px] !font-black !px-3" />
                         </template>
                     </Column>
-                    <Column header="Actions" headerStyle="width: 5rem">
+                    <Column header="Actions" headerStyle="width: 15rem">
                         <template #body="{ data }">
-                            <Button v-if="data.status === 'en attente'" @click="validateAssignment(data.id)" class="!bg-green-600 !border-none !text-white !px-3 !py-1.5 !text-xs !font-bold !rounded-lg flex items-center gap-1">
-                                <CheckCircle class="w-3 h-3" />
-                                Valider
-                            </Button>
+                            <div class="flex items-center gap-1.5">
+                                <Button v-if="data.status === 'en attente'" @click="validateAssignment(data.id)" class="!bg-green-600 !border-none !text-white !px-2.5 !py-1.5 !text-[10px] !font-bold !rounded-lg flex items-center gap-1">
+                                    <CheckCircle class="w-3 h-3" />
+                                    Valider
+                                </Button>
+                                <Button v-if="['validé', 'en attente'].includes(data.status)" @click="suspendAssignment(data.id)" class="!bg-amber-600 !border-none !text-white !px-2.5 !py-1.5 !text-[10px] !font-bold !rounded-lg flex items-center gap-1">
+                                    <PauseCircle class="w-3 h-3" />
+                                    Suspendre
+                                </Button>
+                                <Button v-if="['validé', 'suspendu', 'en attente'].includes(data.status)" @click="terminateAssignment(data.id)" class="!bg-red-600 !border-none !text-white !px-2.5 !py-1.5 !text-[10px] !font-bold !rounded-lg flex items-center gap-1">
+                                    <XCircle class="w-3 h-3" />
+                                    Terminer
+                                </Button>
+                            </div>
                         </template>
                     </Column>
                 </DataTable>

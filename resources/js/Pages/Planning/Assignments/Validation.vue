@@ -7,7 +7,7 @@ import Column from "primevue/column";
 import Tag from "primevue/tag";
 import Button from "primevue/button";
 import Checkbox from "primevue/checkbox";
-import { UserPlus, Clock, Calendar, CheckCircle, AlertCircle } from "lucide-vue-next";
+import { UserPlus, Clock, Calendar, CheckCircle, AlertCircle, PauseCircle, XCircle } from "lucide-vue-next";
 
 const props = defineProps({
     pendingAssignments: Array,
@@ -29,10 +29,22 @@ const validateAssignment = (id) => {
     router.post(route('planning.assignments.validate', id));
 };
 
+const suspendAssignment = (id) => {
+    router.post(route('planning.assignments.suspend', id));
+};
+
+const terminateAssignment = (id) => {
+    router.post(route('planning.assignments.terminate', id));
+};
+
 const bulkValidate = () => {
     const ids = selectedAssignments.value.map(a => a.id);
     router.post(route('planning.assignments.bulk-validate'), { ids });
     selectedAssignments.value = [];
+};
+
+const validateAll = () => {
+    router.post(route('planning.assignments.validate-all'));
 };
 </script>
 
@@ -48,6 +60,14 @@ const bulkValidate = () => {
                 </div>
 
                 <div class="flex gap-3">
+                    <Button
+                        v-if="pendingAssignments.length > 0"
+                        @click="validateAll"
+                        class="!bg-blue-600 !border-none !rounded-xl !px-6 flex items-center gap-2"
+                    >
+                        <CheckCircle class="w-4 h-4 text-white" />
+                        <span class="font-bold text-white">Valider tout ({{ pendingAssignments.length }})</span>
+                    </Button>
                     <Button
                         v-if="selectedAssignments.length > 0"
                         @click="bulkValidate"
@@ -115,15 +135,29 @@ const bulkValidate = () => {
                         </template>
                     </Column>
 
-                    <Column header="Actions" headerStyle="width: 12rem; text-align: center">
+                    <Column header="Actions" headerStyle="width: 20rem; text-align: center">
                         <template #body="{ data }">
-                            <div class="flex gap-2 justify-center">
+                            <div class="flex gap-1.5 justify-center">
                                 <Button
                                     @click="validateAssignment(data.id)"
-                                    class="!bg-green-600 !border-none !text-white !px-4 !py-2 !text-xs !font-bold !rounded-lg flex items-center gap-1"
+                                    class="!bg-green-600 !border-none !text-white !px-2.5 !py-1.5 !text-[10px] !font-bold !rounded-lg flex items-center gap-1"
                                 >
-                                    <CheckCircle class="w-3.5 h-3.5" />
+                                    <CheckCircle class="w-3 h-3" />
                                     Valider
+                                </Button>
+                                <Button
+                                    @click="suspendAssignment(data.id)"
+                                    class="!bg-amber-600 !border-none !text-white !px-2.5 !py-1.5 !text-[10px] !font-bold !rounded-lg flex items-center gap-1"
+                                >
+                                    <PauseCircle class="w-3 h-3" />
+                                    Suspendre
+                                </Button>
+                                <Button
+                                    @click="terminateAssignment(data.id)"
+                                    class="!bg-red-600 !border-none !text-white !px-2.5 !py-1.5 !text-[10px] !font-bold !rounded-lg flex items-center gap-1"
+                                >
+                                    <XCircle class="w-3 h-3" />
+                                    Terminer
                                 </Button>
                             </div>
                         </template>

@@ -29,11 +29,11 @@ class PlanningAssignmentController extends Controller
 
         $supervisorAssignments = $supervisors->map(function ($supervisor) use ($allAssignments) {
             $supervisorAssignments = $allAssignments->where('employee_id', $supervisor->id);
-            
+
             $teleconseillerIds = Assignment::where('manager_id', $supervisor->id)
                 ->where('status', 'actif')
                 ->pluck('employee_id');
-                
+
             $teleconseillerAssignments = $allAssignments->whereIn('employee_id', $teleconseillerIds);
 
             return [
@@ -96,11 +96,11 @@ class PlanningAssignmentController extends Controller
         ]);
 
         $supervisor = Employee::findOrFail($request->supervisor_id);
-        
+
         $teleconseillerIds = Assignment::where('manager_id', $supervisor->id)
             ->where('status', 'actif')
             ->pluck('employee_id');
-                
+
         $employeesToAssign = collect([$supervisor])->merge(Employee::whereIn('id', $teleconseillerIds)->get());
 
         foreach ($employeesToAssign as $employee) {
@@ -166,7 +166,7 @@ class PlanningAssignmentController extends Controller
 
         foreach ($assignments as $assignment) {
             $oldStatus = $assignment->status;
-            
+
             $assignment->update([
                 'status' => 'validé',
                 'validated_at' => now(),
@@ -179,6 +179,31 @@ class PlanningAssignmentController extends Controller
                 'new_status' => 'validé',
                 'changed_by' => Auth::id(),
                 'reason' => 'Validation en lot',
+            ]);
+        }
+
+        return back()->with('success', count($assignments) . ' plannings ont été validés.');
+    }
+
+    public function validateAll()
+    {
+        $assignments = PlanningAssignment::where('status', 'en attente')->get();
+
+        foreach ($assignments as $assignment) {
+            $oldStatus = $assignment->status;
+
+            $assignment->update([
+                'status' => 'validé',
+                'validated_at' => now(),
+                'validated_by' => Auth::id()
+            ]);
+
+            PlanningHistory::create([
+                'planning_assignment_id' => $assignment->id,
+                'old_status' => $oldStatus,
+                'new_status' => 'validé',
+                'changed_by' => Auth::id(),
+                'reason' => 'Validation de tous les plannings',
             ]);
         }
 
@@ -203,6 +228,26 @@ class PlanningAssignmentController extends Controller
         ]);
 
         return back()->with('success', 'Le planning a été suspendu.');
+    }
+
+    public function terminateAssignment($id)
+    {
+        $assignment = PlanningAssignment::findOrFail($id);
+        $oldStatus = $assignment->status;
+
+        $assignment->update([
+            'status' => 'terminé',
+        ]);
+
+        PlanningHistory::create([
+            'planning_assignment_id' => $assignment->id,
+            'old_status' => $oldStatus,
+            'new_status' => 'terminé',
+            'changed_by' => Auth::id(),
+            'reason' => 'Terminaison du planning',
+        ]);
+
+        return back()->with('success', 'Le planning a été terminé.');
     }
 
     public function validation()
