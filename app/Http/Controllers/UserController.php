@@ -10,6 +10,8 @@ use Inertia\Inertia;
 
 class UserController extends Controller
 {
+    use \App\Traits\LogsActivity;
+    // use App\LogsActivity;
     public function index()
     {
         $users = User::with('role')->paginate(10);
@@ -31,16 +33,22 @@ class UserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:4',
+            'password' => 'required|string|min:8',
             'role_id' => 'required|exists:roles,id',
         ]);
 
-        User::create([
+        $user=User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role_id' => $request->role_id,
         ]);
+        $this->logActivity(
+        'create',
+        'User',
+        $user->id,
+        'Création de l’utilisateur ' . $user->name
+        );
 
         return redirect()->route('users.index')->with('success', 'Utilisateur créé avec succès.');
     }
@@ -70,12 +78,18 @@ class UserController extends Controller
 
         if ($request->filled('password')) {
             $request->validate([
-                'password' => 'string|min:4',
+                'password' => 'string|min:8',
             ]);
             $user->update([
                 'password' => Hash::make($request->password),
             ]);
         }
+        $this->logActivity(
+        'update',
+        'User',
+        $user->id,
+        'Modification de l’utilisateur ' . $user->name
+        );
 
         return redirect()->route('users.index')->with('success', 'Utilisateur mis à jour avec succès.');
     }
@@ -83,6 +97,12 @@ class UserController extends Controller
     public function destroy(User $user)
     {
         $user->delete();
+        $this->logActivity(
+        'delete',
+        'User',
+        $user->id,
+        'Suppression de l’utilisateur ' . $user->name
+        );
         return redirect()->route('users.index')->with('success', 'Utilisateur supprimé avec succès.');
     }
 }

@@ -18,5 +18,9 @@ class PlanningHistory extends Model
         'reason',
         'created_at',
     ];
+    public function logs()
+{
+    return $this->morphMany(ActivityLog::class, 'model');
+}
 
 }

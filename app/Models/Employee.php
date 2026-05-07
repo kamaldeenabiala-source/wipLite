@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Employee extends Model
 {
@@ -59,7 +60,7 @@ class Employee extends Model
     }
 
     /**
-     * Génère un matricule unique au format 
+     * Génère un matricule unique au format
      */
     public static function generateMatricule(): string
     {
@@ -94,6 +95,15 @@ class Employee extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    /**
+     * Historique des modifications de l'employé
+     */
+    public function histories(): HasMany
+    {
+        return $this->hasMany(EmployeeHistory::class)->latest();
+    }
+
 
     // -------------------------------------------------------
     // Filtres réutilisables
@@ -135,4 +145,8 @@ class Employee extends Model
         return "{$this->first_name} {$this->last_name}";
     }
 
+    public function logs()
+    {
+        return $this->morphMany(ActivityLog::class, 'model');
+    }
 }

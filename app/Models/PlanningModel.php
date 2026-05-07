@@ -23,14 +23,17 @@ class PlanningModel extends Model
         'created_by',
     ];
 
-    public function planningAssignments()
+    public function assignments()
     {
         return $this->hasMany(PlanningAssignment::class);
     }
 
-    public function createdBy()
+    public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
     }
-
+public function logs()
+{
+    return $this->morphMany(ActivityLog::class, 'model');
+}
 }
