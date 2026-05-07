@@ -35,7 +35,6 @@ onMounted(()=>{
                     </div>
                 </div>
             </div>
-         <Link href="/employees">Employees</Link>
         </div>
     </AuthenticatedLayout>
 </template>

@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\PositionController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\UserController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -15,24 +17,39 @@ Route::get('/', function () {
     ]);
 });
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard', function () {
+        return Inertia::render('Dashboard/TeleConseiller');
+    })->name('dashboard');
 
-// Routes provisoires pour voir le rendu de chaque interface
-Route::get("/dashboard/admin", function () {
-    return Inertia::render('Dashboard/Admin');
-});
-Route::get("/employees", function () {
-    return Inertia::render('Employees/Index');
-});
+    Route::get('/dashboard/admin', function () {
+        return Inertia::render('Dashboard/Admin');
+    })->name('dashboard.admin');
 
+    Route::get('/dashboard/cp', function () {
+        return Inertia::render('Dashboard/ChefPlateau');
+    })->name('dashboard.cp');
 
-Route::middleware('auth')->group(function () {
+    Route::get('/dashboard/sup', function () {
+        return Inertia::render('Dashboard/Superviseur');
+    })->name('dashboard.sup');
+
+    Route::get('/dashboard/tc', function () {
+        return Inertia::render('Dashboard/TeleConseiller');
+    })->name('dashboard.tc');
+
+    Route::get('/employees', function () {
+        return Inertia::render('Employees/Index');
+    })->name('employees.index');
+
+    Route::resource('users', UserController::class);
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    
     Route::resource('/employees', EmployeeController::class);
+    Route::resource('/positions', PositionController::class)->only(['index', 'show']);
 });
 
 require __DIR__.'/auth.php';
