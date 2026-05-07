@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CampaignController;
+use App\Http\Controllers\PlanningModelsController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AssignmentController; // Importation du contrôleur d'affectations
@@ -60,12 +61,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Routes pour la gestion des utilisateurs
     Route::resource('users', UserController::class);
     Route::resource('users', UserController::class)->middleware('role:admin');
+    Route::resource('planning/models', PlanningModelsController::class)->middleware('role:admin')->names('planning.models');
 
     // Routes pour la gestion des affectations
-    // Route::get('/assignments', [AssignmentController::class, 'index'])->name('assignments.index');
-    // Route::post('/assignments', [AssignmentController::class, 'store'])->name('assignments.store');
-    // Route::post('/assignments/{assignment}/release', [AssignmentController::class, 'release'])->name('assignments.release');
-    // Route::post('/assignments/{assignment}/reassign', [AssignmentController::class, 'reassign'])->name('assignments.reassign');
+    Route::get('/assignments', [AssignmentController::class, 'index'])->name('assignments.index');
+    Route::post('/assignments', [AssignmentController::class, 'store'])->name('assignments.store');
+    Route::post('/assignments/{assignment}/release', [AssignmentController::class, 'release'])->name('assignments.release');
+    Route::post('/assignments/{assignment}/reassign', [AssignmentController::class, 'reassign'])->name('assignments.reassign');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
