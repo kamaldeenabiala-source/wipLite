@@ -62,10 +62,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('users', UserController::class)->middleware('role:admin');
 
     // Routes pour la gestion des affectations
-    Route::get('/assignments', [AssignmentController::class, 'index'])->name('assignments.index');
-    Route::post('/assignments', [AssignmentController::class, 'store'])->name('assignments.store');
-    Route::post('/assignments/{assignment}/release', [AssignmentController::class, 'release'])->name('assignments.release');
-    Route::post('/assignments/{assignment}/reassign', [AssignmentController::class, 'reassign'])->name('assignments.reassign');
+    // Route::get('/assignments', [AssignmentController::class, 'index'])->name('assignments.index');
+    // Route::post('/assignments', [AssignmentController::class, 'store'])->name('assignments.store');
+    // Route::post('/assignments/{assignment}/release', [AssignmentController::class, 'release'])->name('assignments.release');
+    // Route::post('/assignments/{assignment}/reassign', [AssignmentController::class, 'reassign'])->name('assignments.reassign');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
