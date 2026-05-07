@@ -198,7 +198,7 @@ const weekDays = [
                 </div>
             </section>
 
-            <section
+            <!-- <section
                 class="col-span-12 lg:col-span-7 bg-white border border-slate-100 rounded-[2rem] p-6 h-fit shadow-sm"
             >
                 <h3
@@ -239,7 +239,7 @@ const weekDays = [
                         </div>
                     </div>
                 </div>
-            </section>
+            </section> -->
         </div>
 
         <Dialog
