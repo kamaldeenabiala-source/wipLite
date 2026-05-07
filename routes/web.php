@@ -1,11 +1,14 @@
 <?php
 
+use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\PlanningModelsController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportingController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\AssignmentController; // Importation du contrôleur d'affectations
+use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -60,8 +63,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/users/roles', [RoleController::class, 'index'])
             ->name('roles.index');
 
+    // Routes pour la gestion des utilisateurs
+    Route::resource('users', UserController::class);
     Route::resource('users', UserController::class)->middleware('role:admin');
     Route::resource('planning/models', PlanningModelsController::class)->middleware('role:admin')->names('planning.models');
+
+    // Routes pour la gestion des affectations
+    Route::get('/assignments', [AssignmentController::class, 'index'])->name('assignments.index');
+    Route::post('/assignments', [AssignmentController::class, 'store'])->name('assignments.store');
+    Route::post('/assignments/{assignment}/release', [AssignmentController::class, 'release'])->name('assignments.release');
+    Route::post('/assignments/{assignment}/reassign', [AssignmentController::class, 'reassign'])->name('assignments.reassign');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -149,6 +160,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/export/excel', [ReportingController::class, 'exportExcel']);
     });
 
+});
+
+Route::middleware('auth')->group(function () {
+    Route::resource('campaigns', CampaignController::class);
+
+    // route specifique pour le statut
+    Route::patch('/campaigns/{campaign}/status', [CampaignController::class, 'changeStatus'])->name('campaigns.status');
 });
 
 require __DIR__.'/auth.php';
