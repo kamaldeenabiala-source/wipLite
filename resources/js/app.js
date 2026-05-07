@@ -8,9 +8,8 @@ import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import Primevue from  'primevue/config';
 import Aura from '@primeuix/themes/aura';
 import ToastService from 'primevue/toastservice';
-import 'primeicons/primeicons.css'
-
-
+import 'primeicons/primeicons.css'; // (renaud)
+import ConfirmationService from 'primevue/confirmationservice'; // j'ai ajouté cette ligne parce que ma vue à besoin de ça pour la confirmation d'archivage d'un employé (renaud)
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -31,6 +30,7 @@ createInertiaApp({
                 }
             })
             .use(ToastService)
+            .use(ConfirmationService) //
             .mount(el);
     },
     progress: {

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class PlanningHistory extends Model
 {
     use HasFactory;
+    protected $table = 'planning_historys';
     protected $table = 'planning_histories';
     public $timestamps = false;
 

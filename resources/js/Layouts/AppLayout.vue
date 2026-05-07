@@ -74,6 +74,7 @@ const isHoveringSidebar = ref(false);
         { label: 'Ajouter un employé',     href: '/employees/create' },
 
         { label: 'Employés affectés',      href: '/employees/assigned' },
+        { label: 'Employés inactifs',     href: '/employees/inactifs' },
 
         { label: 'Employés non affectés',  href: '/employees/unassigned' },
 
@@ -434,6 +435,7 @@ const isHoveringSidebar = ref(false);
 
 };
 
+
 const currentMenu = computed(() => {
   const role = page.props.auth?.role;
   return menuConfig[role] ?? menuConfig.tc;
@@ -561,3 +563,4 @@ const sidebarWidth = computed(() => (isHoveringSidebar.value || !hasSubMenu.valu
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 </style>
+
