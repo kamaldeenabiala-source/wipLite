@@ -20,7 +20,7 @@ class EmployeeHistory extends Model
         'changed_by',
         'reason',
     ];
- 
+
     // -------------------------------------------------------
     // RELATIONS
     // -------------------------------------------------------
@@ -40,4 +40,9 @@ class EmployeeHistory extends Model
     {
         return $this->belongsTo(User::class, 'changed_by');
     }
+    //
+    public function logs()
+{
+    return $this->morphMany(ActivityLog::class, 'model');
+}
 }

@@ -14,5 +14,8 @@ class Campaign extends Model
         return $this->hasMany(Assignment::class);
     }
 
-
+    public function logs()
+    {
+        return $this->morphMany(ActivityLog::class, 'model');
+    }
 }

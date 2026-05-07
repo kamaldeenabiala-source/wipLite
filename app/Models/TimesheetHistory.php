@@ -20,5 +20,10 @@ class TimesheetHistory extends Model
 
     public function employee() { return $this->belongsTo(Employee::class); }
 
+
     public function author() { return $this->belongsTo(User::class, 'changed_by'); }
+    public function logs()
+{
+    return $this->morphMany(ActivityLog::class, 'model');
+}
 }

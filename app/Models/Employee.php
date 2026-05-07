@@ -60,7 +60,7 @@ class Employee extends Model
     }
 
     /**
-     * Génère un matricule unique au format 
+     * Génère un matricule unique au format
      */
     public static function generateMatricule(): string
     {
@@ -145,4 +145,8 @@ class Employee extends Model
         return "{$this->first_name} {$this->last_name}";
     }
 
+    public function logs()
+    {
+        return $this->morphMany(ActivityLog::class, 'model');
+    }
 }

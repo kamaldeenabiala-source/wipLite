@@ -75,6 +75,7 @@ const isHoveringSidebar = ref(false);
 
         { label: 'Employés affectés',      href: '/employees/assigned' },
         { label: 'Employés inactifs',     href: '/employees/inactifs' },
+
         { label: 'Employés non affectés',  href: '/employees/unassigned' },
 
         { label: 'Historique des employés',href: '/employees/history' },
@@ -435,6 +436,7 @@ const isHoveringSidebar = ref(false);
   },
 
 };
+
 
 const currentMenu = computed(() => {
   const role = page.props.auth?.role;
