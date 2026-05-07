@@ -53,14 +53,65 @@ const filteredCampaigns = computed(() => {
  * Gestion du menu contextuel par ligne
  */
 const toggleMenu = (event, data) => {
+    event.stopPropagation(); // Empêche le clic sur la ligne
     selectedCampaign.value = data;
-    menuItems.value = [
+    
+    const items = [
         { label: 'Voir le détail', icon: 'pi pi-eye', command: () => router.get(`/campaigns/${data.id}`) },
-        { label: 'Modifier', icon: 'pi pi-pencil', command: () => editCampaign(data) },
-        { separator: true },
-        { label: 'Supprimer', icon: 'pi pi-trash', class: 'text-red-500', command: () => confirmDelete(data) }
+        { label: 'Modifier', icon: 'pi pi-pencil', command: () => editCampaign(data) }
     ];
+
+    // On n'ajoute le bouton de changement de statut que si la campagne n'est pas terminée
+    if (data.status !== 'terminee') {
+        const nextStatus = data.status === 'active' ? 'inactive' : 'active';
+        const statusLabel = data.status === 'active' ? 'Désactiver' : 'Activer';
+        items.push({ 
+            label: statusLabel, 
+            icon: data.status === 'active' ? 'pi pi-power-off' : 'pi pi-play', 
+            command: () => toggleStatus(data, nextStatus) 
+        });
+    }
+
+    // Bouton de clôture (anciennement supprimer)
+    items.push({ separator: true });
+    if (data.status !== 'terminee') {
+        items.push({ 
+            label: 'Clôturer', 
+            icon: 'pi pi-times-circle', 
+            class: 'text-red-500', 
+            command: () => confirmDelete(data) 
+        });
+    }
+
+    menuItems.value = items;
     menu.value.toggle(event);
+};
+
+/**
+ * Basculer le statut d'une campagne
+ */
+const toggleStatus = (data, nextStatus) => {
+    router.patch(`/campaigns/${data.id}/status`, { status: nextStatus }, {
+        onSuccess: () => {
+            toast.add({ 
+                severity: 'success', 
+                summary: 'Statut mis à jour', 
+                detail: `La campagne est maintenant ${nextStatus}`, 
+                life: 3000 
+            });
+        }
+    });
+};
+
+/**
+ * Navigation vers la page de détail au clic sur une ligne
+ */
+const onRowClick = (event) => {
+    // Si on a cliqué sur un bouton ou un menu, on ne navigue pas
+    if (event.originalEvent.target.closest('button') || event.originalEvent.target.closest('.p-menu')) {
+        return;
+    }
+    router.get(`/campaigns/${event.data.id}`);
 };
 
 // Fonctions CRUD basiques
@@ -111,10 +162,10 @@ const confirmDelete = (data) => {
     deleteDialog.value = true;
 };
 
-const deleteCampaign = () => {
+const closeCampaign = () => {
     router.delete(`/campaigns/${selectedCampaign.value.id}`, {
         onSuccess: () => {
-            toast.add({ severity: 'success', summary: 'Succès', detail: 'Supprimé', life: 3000 });
+            toast.add({ severity: 'success', summary: 'Succès', detail: 'Campagne clôturée avec succès', life: 3000 });
             deleteDialog.value = false;
         }
     });
@@ -139,7 +190,7 @@ const getStatusSeverity = (status) => {
                     <h1 class="text-3xl font-bold text-slate-900">Campagnes</h1>
                     <p class="text-slate-500">{{ props.campaigns.length }} campagnes au total</p>
                 </div>
-                <Button label="Nouvelle campagne" icon="pi pi-plus" class="rounded-lg px-4 py-2" @click="openNew" />
+                <Button label="Nouvelle campagne" icon="pi pi-plus" class="!bg-blue-600 rounded-lg px-4 py-2" @click="openNew" />
             </div>
 
             <!-- FILTRES (Image 3) -->
@@ -152,12 +203,13 @@ const getStatusSeverity = (status) => {
 
             <!-- TABLEAU (Image 3) -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <DataTable :value="filteredCampaigns" class="p-datatable-custom" responsiveLayout="stack">
+                <DataTable :value="filteredCampaigns" class="p-datatable-custom cursor-pointer" responsiveLayout="stack" 
+                    @row-click="onRowClick" rowHover >
                     <Column field="name" header="Nom" sortable>
                         <template #body="slotProps">
-                            <Link :href="`/campaigns/${slotProps.data.id}`" class="font-bold text-slate-900 hover:text-blue-600 transition-colors">
+                            <span class="font-bold text-slate-900 hover:text-blue-600 transition-colors">
                                 {{ slotProps.data.name }}
-                            </Link>
+                            </span>
                         </template>
                     </Column>
                     
@@ -199,7 +251,7 @@ const getStatusSeverity = (status) => {
                 <div class="flex flex-col gap-4 mt-2">
                     <div>
                         <label class="font-semibold block mb-1">Nom de la campagne *</label>
-                        <InputText v-model="campaign.name" placeholder="Ex: Satisfaction Client Q1" :class="{'p-invalid': submitted && !campaign.name}" />
+                        <InputText v-model="campaign.name" placeholder="Ex: Campagne Highfive" :class="{'p-invalid': submitted && !campaign.name}" />
                     </div>
                     <div>
                         <label class="font-semibold block mb-1">Description</label>
@@ -230,15 +282,18 @@ const getStatusSeverity = (status) => {
                 </template>
             </Dialog>
 
-            <!-- MODAL SUPPRESSION -->
-            <Dialog v-model:visible="deleteDialog" header="Confirmation" modal :style="{width: '400px'}">
+            <!-- MODAL SUPPRESSION (CLÔTURE) -->
+            <Dialog v-model:visible="deleteDialog" header="Confirmation de clôture" modal :style="{width: '400px'}">
                 <div class="flex items-center gap-3">
                     <i class="pi pi-exclamation-triangle text-red-500 text-3xl" />
-                    <span>Voulez-vous supprimer <b>{{ selectedCampaign?.name }}</b> ?</span>
+                    <div class="flex flex-col">
+                        <span>Voulez-vous clôturer la campagne <b>{{ selectedCampaign?.name }}</b> ?</span>
+                        <span class="text-sm text-slate-500 mt-2 italic">Cette action passera le statut de la campagne à "Terminée".</span>
+                    </div>
                 </div>
                 <template #footer>
-                    <Button label="Non" severity="secondary" text @click="deleteDialog = false" />
-                    <Button label="Oui, supprimer" severity="danger" @click="deleteCampaign" />
+                    <Button label="Annuler" severity="secondary" text @click="deleteDialog = false" />
+                    <Button label="Confirmer la clôture" severity="danger" @click="closeCampaign" />
                 </template>
             </Dialog>
         </div>

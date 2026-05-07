@@ -11,6 +11,7 @@ import Avatar from 'primevue/avatar';
 import Dialog from 'primevue/dialog';
 import Dropdown from 'primevue/dropdown';
 import InputText from 'primevue/inputtext';
+import Textarea from 'primevue/textarea';
 import { useToast } from 'primevue/usetoast';
 import { ref, computed } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
@@ -31,13 +32,18 @@ const activeTab = ref(0);
 // --- LOGIQUE DE CAMPAGNE ---
 
 /**
- * Clôturer la campagne (Status -> terminee)
+ * Clôturer la campagne (Status -> terminee via route DELETE)
  */
+const closeDialog = ref(false);
 const closeCampaign = () => {
-    router.patch(`/campaigns/${props.campaign.id}/status`, { status: 'terminee' }, {
-        onSuccess: () => toast.add({ severity: 'success', summary: 'Succès', detail: 'Campagne clôturée', life: 3000 })
+    router.delete(`/campaigns/${props.campaign.id}`, {
+        onSuccess: () => {
+            toast.add({ severity: 'success', summary: 'Succès', detail: 'Campagne clôturée avec succès', life: 3000 });
+            closeDialog.value = false;
+        }
     });
 };
+
 
 /**
  * Désactiver la campagne (Status -> inactive)
@@ -45,6 +51,47 @@ const closeCampaign = () => {
 const deactivateCampaign = () => {
     router.patch(`/campaigns/${props.campaign.id}/status`, { status: 'inactive' }, {
         onSuccess: () => toast.add({ severity: 'success', summary: 'Succès', detail: 'Campagne désactivée', life: 3000 })
+    });
+};
+
+/**
+ * Activer la campagne (Status -> active)
+ */
+const activateCampaign = () => {
+    router.patch(`/campaigns/${props.campaign.id}/status`, { status: 'active' }, {
+        onSuccess: () => toast.add({ severity: 'success', summary: 'Succès', detail: 'Campagne activée', life: 3000 })
+    });
+};
+
+// --- LOGIQUE D'ÉDITION DE CAMPAGNE ---
+const campaignDialog = ref(false);
+const editForm = ref({});
+const submitted = ref(false);
+
+const openEdit = () => {
+    // Formatage des dates pour l'input date
+    const formatted = { ...props.campaign };
+    if (props.campaign.start_date) {
+        const p = props.campaign.start_date.split('/');
+        if (p.length === 3) formatted.start_date = `${p[2]}-${p[1]}-${p[0]}`;
+    }
+    if (props.campaign.end_date) {
+        const p = props.campaign.end_date.split('/');
+        if (p.length === 3) formatted.end_date = `${p[2]}-${p[1]}-${p[0]}`;
+    }
+    editForm.value = formatted;
+    campaignDialog.value = true;
+};
+
+const saveCampaign = () => {
+    submitted.value = true;
+    if (!editForm.value.name) return;
+
+    router.put(`/campaigns/${editForm.value.id}`, editForm.value, {
+        onSuccess: () => {
+            toast.add({ severity: 'success', summary: 'Succès', detail: 'Campagne mise à jour', life: 3000 });
+            campaignDialog.value = false;
+        }
     });
 };
 
@@ -229,9 +276,20 @@ const getStatusSeverity = (status) => status === 'active' || status === 'actif' 
                     </div>
 
                     <div class="flex gap-3">
-                        <Button label="Modifier" icon="pi pi-pencil" severity="secondary" outlined class="rounded-xl" />
-                        <Button v-if="props.campaign.status === 'active'" label="Désactiver" icon="pi pi-power-off" severity="warn" outlined class="rounded-xl" @click="deactivateCampaign" />
-                        <Button v-if="props.campaign.status !== 'terminee'" label="Clôturer" icon="pi pi-times-circle" severity="secondary" class="rounded-xl bg-slate-800 border-none" @click="closeCampaign" />
+                        <Button label="Modifier" icon="pi pi-pencil" severity="secondary" outlined class="rounded-xl" @click="openEdit" />
+                        
+                        <!-- Boutons selon le statut -->
+                        <template v-if="props.campaign.status === 'active'">
+                            <Button label="Désactiver" icon="pi pi-power-off" severity="warn" outlined class="rounded-xl" @click="deactivateCampaign" />
+                            <Button label="Clôturer" icon="pi pi-times-circle" severity="danger" class="rounded-xl border-none" @click="closeDialog = true" />
+                        </template>
+
+                        <template v-else-if="props.campaign.status === 'inactive'">
+                            <Button label="Activer" icon="pi pi-play" severity="success" outlined class="rounded-xl" @click="activateCampaign" />
+                            <Button label="Clôturer" icon="pi pi-times-circle" severity="danger" class="rounded-xl border-none" @click="closeDialog = true" />
+                        </template>
+
+                        <!-- Si terminée, aucun bouton supplémentaire n'est affiché selon la consigne (seul Modifier reste) -->
                     </div>
                 </div>
             </div>
@@ -255,100 +313,101 @@ const getStatusSeverity = (status) => status === 'active' || status === 'actif' 
                     <TabPanels class="p-8">
                         <!-- VUE HIÉRARCHIQUE (Image 1) -->
                         <TabPanel :value="0">
-                            <div class="flex justify-between items-center mb-8">
-                                <h3 class="text-slate-400 font-medium">Vue hiérarchique des ressources affectées</h3>
-                                <!-- Bouton désactivé si la campagne n'est pas active -->
-                                <Button 
-                                    label="Affecter une ressource" 
-                                    icon="pi pi-user-plus" 
-                                    class="rounded-2xl px-6 py-3 bg-blue-600 border-none shadow-lg shadow-blue-200" 
-                                    :disabled="props.campaign.status !== 'active'"
-                                    @click="assignmentDialog = true" 
-                                />
-                            </div>
+                            <!-- Cas Campagne Active -->
+                            <template v-if="props.campaign.status === 'active'">
+                                <div class="flex justify-between items-center mb-8">
+                                    <h3 class="text-slate-400 font-medium">Vue hiérarchique des ressources affectées</h3>
+                                    <Button 
+                                        label="Affecter une ressource" 
+                                        icon="pi pi-user-plus" 
+                                        class="rounded-2xl px-6 py-3 bg-blue-600 border-none shadow-lg shadow-blue-200" 
+                                        @click="assignmentDialog = true" 
+                                    />
+                                </div>
 
-                            <div v-if="hierarchicalView.length === 0" class="text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
-                                <i class="pi pi-user-plus text-4xl text-slate-300 mb-4" />
-                                <p class="text-slate-500">Aucun Chef de Plateau n'est encore affecté à cette campagne.</p>
-                            </div>
+                                <div v-if="hierarchicalView.length === 0" class="text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                                    <i class="pi pi-user-plus text-4xl text-slate-300 mb-4" />
+                                    <p class="text-slate-500">Aucun Chef de Plateau n'est encore affecté à cette campagne.</p>
+                                </div>
 
-                            <!-- ARBRE HIÉRARCHIQUE -->
-                            <div class="flex flex-col gap-6">
-                                <div v-for="cp in hierarchicalView" :key="cp.id" class="relative">
-                                    <!-- Ligne CP -->
-                                    <div 
-                                        class="flex items-center gap-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-100 group transition-all hover:bg-white hover:shadow-md"
-                                        @mouseenter="hoveredId = cp.id"
-                                        @mouseleave="hoveredId = null"
-                                    >
-                                        <Avatar :label="getInitials(cp.employee.first_name, cp.employee.last_name)" size="large" shape="circle" class="bg-purple-100 text-purple-600 font-bold" />
-                                        <div class="flex-1">
-                                            <div class="flex items-center gap-2">
-                                                <span class="font-bold text-slate-900 text-lg">{{ cp.employee.first_name }} {{ cp.employee.last_name }}</span>
-                                                <Tag value="CP" severity="info" class="bg-purple-50 text-purple-500 text-[10px] font-bold" />
-                                            </div>
-                                            <div class="flex items-center gap-4 text-slate-400 text-sm mt-1">
-                                                <span>{{ cp.employee.matricule }}</span>
-                                                <span class="flex items-center gap-1"><i class="pi pi-circle-fill text-[6px] text-green-500" /> actif</span>
-                                                <span>Depuis le {{ cp.start_date }}</span>
-                                            </div>
-                                        </div>
-                                        <!-- Actions au survol (Image 1) -->
-                                        <div v-show="hoveredId === cp.id" class="flex gap-2 animate-fade-in">
-                                            <Button icon="pi pi-eye" severity="secondary" text rounded size="small" v-tooltip.top="'Voir'" />
-                                            <Button icon="pi pi-sign-out" severity="danger" text rounded size="small" v-tooltip.top="'Libérer'" @click="openRelease(cp)" />
-                                        </div>
-                                    </div>
-
-                                    <!-- Lignes SUP -->
-                                    <div v-if="cp.subordinates.length > 0" class="ml-12 mt-4 flex flex-col gap-4 border-l-2 border-slate-100 pl-8 relative">
-                                        <div v-for="sup in cp.subordinates" :key="sup.id" class="relative">
-                                            <!-- Connecteur horizontal -->
-                                            <div class="absolute -left-8 top-8 w-8 h-0.5 bg-slate-100"></div>
-                                            
-                                            <div 
-                                                class="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm group transition-all hover:shadow-md"
-                                                @mouseenter="hoveredId = sup.id"
-                                                @mouseleave="hoveredId = null"
-                                            >
-                                                <Avatar :label="getInitials(sup.employee.first_name, sup.employee.last_name)" size="large" shape="circle" class="bg-blue-100 text-blue-600 font-bold" />
-                                                <div class="flex-1">
-                                                    <div class="flex items-center gap-2">
-                                                        <span class="font-bold text-slate-900">{{ sup.employee.first_name }} {{ sup.employee.last_name }}</span>
-                                                        <Tag value="SUP" severity="info" class="bg-blue-50 text-blue-500 text-[10px] font-bold" />
-                                                    </div>
-                                                    <div class="text-slate-400 text-xs mt-1">{{ sup.employee.matricule }} • Depuis le {{ sup.start_date }}</div>
+                                <!-- ARBRE HIÉRARCHIQUE -->
+                                <div class="flex flex-col gap-6">
+                                    <div v-for="cp in hierarchicalView" :key="cp.id" class="relative">
+                                        <!-- Ligne CP -->
+                                        <div 
+                                            class="flex items-center gap-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-100 group transition-all hover:bg-white hover:shadow-md"
+                                            @mouseenter="hoveredId = cp.id"
+                                            @mouseleave="hoveredId = null"
+                                        >
+                                            <Avatar :label="getInitials(cp.employee.first_name, cp.employee.last_name)" size="large" shape="circle" class="bg-purple-100 text-purple-600 font-bold" />
+                                            <div class="flex-1">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="font-bold text-slate-900 text-lg">{{ cp.employee.first_name }} {{ cp.employee.last_name }}</span>
+                                                    <Tag value="CP" severity="info" class="bg-purple-50 text-purple-500 text-[10px] font-bold" />
                                                 </div>
-                                                <!-- Actions au survol -->
-                                                <div v-show="hoveredId === sup.id" class="flex gap-2 animate-fade-in">
-                                                    <Button icon="pi pi-sync" severity="info" text rounded size="small" v-tooltip.top="'Réaffecter'" @click="openReassign(sup)" />
-                                                    <Button icon="pi pi-eye" severity="secondary" text rounded size="small" v-tooltip.top="'Voir'" />
-                                                    <Button icon="pi pi-sign-out" severity="danger" text rounded size="small" v-tooltip.top="'Libérer'" @click="openRelease(sup)" />
+                                                <div class="flex items-center gap-4 text-slate-400 text-sm mt-1">
+                                                    <span>{{ cp.employee.matricule }}</span>
+                                                    <span class="flex items-center gap-1"><i class="pi pi-circle-fill text-[6px] text-green-500" /> actif</span>
+                                                    <span>Depuis le {{ cp.start_date }}</span>
                                                 </div>
                                             </div>
+                                            <!-- Actions au survol (Image 1) -->
+                                            <div v-show="hoveredId === cp.id" class="flex gap-2 animate-fade-in">
+                                                <Button icon="pi pi-eye" severity="secondary" text rounded size="small" v-tooltip.top="'Voir'" />
+                                                <Button icon="pi pi-sign-out" severity="danger" text rounded size="small" v-tooltip.top="'Libérer'" @click="openRelease(cp)" />
+                                            </div>
+                                        </div>
 
-                                            <!-- Lignes TC -->
-                                            <div v-if="sup.subordinates.length > 0" class="ml-12 mt-4 flex flex-col gap-3 border-l-2 border-slate-100 pl-8 relative">
-                                                <div v-for="tc in sup.subordinates" :key="tc.id" class="relative">
-                                                    <div class="absolute -left-8 top-6 w-8 h-0.5 bg-slate-100"></div>
-                                                    <div 
-                                                        class="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 shadow-sm group transition-all hover:shadow-md"
-                                                        @mouseenter="hoveredId = tc.id"
-                                                        @mouseleave="hoveredId = null"
-                                                    >
-                                                        <Avatar :label="getInitials(tc.employee.first_name, tc.employee.last_name)" size="normal" shape="circle" class="bg-emerald-100 text-emerald-600 font-bold" />
-                                                        <div class="flex-1">
-                                                            <div class="flex items-center gap-2">
-                                                                <span class="font-semibold text-slate-800 text-sm">{{ tc.employee.first_name }} {{ tc.employee.last_name }}</span>
-                                                                <Tag value="TC" severity="info" class="bg-emerald-50 text-emerald-500 text-[9px] font-bold" />
-                                                            </div>
-                                                            <div class="text-slate-400 text-[10px]">{{ tc.employee.matricule }} • Depuis le {{ tc.start_date }}</div>
+                                        <!-- Lignes SUP -->
+                                        <div v-if="cp.subordinates.length > 0" class="ml-12 mt-4 flex flex-col gap-4 border-l-2 border-slate-100 pl-8 relative">
+                                            <div v-for="sup in cp.subordinates" :key="sup.id" class="relative">
+                                                <!-- Connecteur horizontal -->
+                                                <div class="absolute -left-8 top-8 w-8 h-0.5 bg-slate-100"></div>
+                                                
+                                                <div 
+                                                    class="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm group transition-all hover:shadow-md"
+                                                    @mouseenter="hoveredId = sup.id"
+                                                    @mouseleave="hoveredId = null"
+                                                >
+                                                    <Avatar :label="getInitials(sup.employee.first_name, sup.employee.last_name)" size="large" shape="circle" class="bg-blue-100 text-blue-600 font-bold" />
+                                                    <div class="flex-1">
+                                                        <div class="flex items-center gap-2">
+                                                            <span class="font-bold text-slate-900">{{ sup.employee.first_name }} {{ sup.employee.last_name }}</span>
+                                                            <Tag value="SUP" severity="info" class="bg-blue-50 text-blue-500 text-[10px] font-bold" />
                                                         </div>
-                                                        <!-- Actions au survol -->
-                                                        <div v-show="hoveredId === tc.id" class="flex gap-2 animate-fade-in">
-                                                            <Button icon="pi pi-sync" severity="info" text rounded size="small" v-tooltip.top="'Réaffecter'" @click="openReassign(tc)" />
-                                                            <Button icon="pi pi-eye" severity="secondary" text rounded size="small" v-tooltip.top="'Voir'" />
-                                                            <Button icon="pi pi-sign-out" severity="danger" text rounded size="small" v-tooltip.top="'Libérer'" @click="openRelease(tc)" />
+                                                        <div class="text-slate-400 text-xs mt-1">{{ sup.employee.matricule }} • Depuis le {{ sup.start_date }}</div>
+                                                    </div>
+                                                    <!-- Actions au survol -->
+                                                    <div v-show="hoveredId === sup.id" class="flex gap-2 animate-fade-in">
+                                                        <Button icon="pi pi-sync" severity="info" text rounded size="small" v-tooltip.top="'Réaffecter'" @click="openReassign(sup)" />
+                                                        <Button icon="pi pi-eye" severity="secondary" text rounded size="small" v-tooltip.top="'Voir'" />
+                                                        <Button icon="pi pi-sign-out" severity="danger" text rounded size="small" v-tooltip.top="'Libérer'" @click="openRelease(sup)" />
+                                                    </div>
+                                                </div>
+
+                                                <!-- Lignes TC -->
+                                                <div v-if="sup.subordinates.length > 0" class="ml-12 mt-4 flex flex-col gap-3 border-l-2 border-slate-100 pl-8 relative">
+                                                    <div v-for="tc in sup.subordinates" :key="tc.id" class="relative">
+                                                        <div class="absolute -left-8 top-6 w-8 h-0.5 bg-slate-100"></div>
+                                                        <div 
+                                                            class="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 shadow-sm group transition-all hover:shadow-md"
+                                                            @mouseenter="hoveredId = tc.id"
+                                                            @mouseleave="hoveredId = null"
+                                                        >
+                                                            <Avatar :label="getInitials(tc.employee.first_name, tc.employee.last_name)" size="normal" shape="circle" class="bg-emerald-100 text-emerald-600 font-bold" />
+                                                            <div class="flex-1">
+                                                                <div class="flex items-center gap-2">
+                                                                    <span class="font-semibold text-slate-800 text-sm">{{ tc.employee.first_name }} {{ tc.employee.last_name }}</span>
+                                                                    <Tag value="TC" severity="info" class="bg-emerald-50 text-emerald-500 text-[9px] font-bold" />
+                                                                </div>
+                                                                <div class="text-slate-400 text-[10px]">{{ tc.employee.matricule }} • Depuis le {{ tc.start_date }}</div>
+                                                            </div>
+                                                            <!-- Actions au survol -->
+                                                            <div v-show="hoveredId === tc.id" class="flex gap-2 animate-fade-in">
+                                                                <Button icon="pi pi-sync" severity="info" text rounded size="small" v-tooltip.top="'Réaffecter'" @click="openReassign(tc)" />
+                                                                <Button icon="pi pi-eye" severity="secondary" text rounded size="small" v-tooltip.top="'Voir'" />
+                                                                <Button icon="pi pi-sign-out" severity="danger" text rounded size="small" v-tooltip.top="'Libérer'" @click="openRelease(tc)" />
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -356,7 +415,26 @@ const getStatusSeverity = (status) => status === 'active' || status === 'actif' 
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </template>
+
+                            <!-- Cas Campagne Inactive -->
+                            <template v-else-if="props.campaign.status === 'inactive'">
+                                <div class="text-center py-20 bg-amber-50 rounded-3xl border-2 border-dashed border-amber-200">
+                                    <i class="pi pi-lock text-4xl text-amber-400 mb-4" />
+                                    <p class="text-amber-800 font-bold text-xl mb-2">Les affectations sont désactivées.</p>
+                                    <p class="text-amber-600">La campagne doit être active pour gérer les affectations.</p>
+                                </div>
+                            </template>
+
+                            <!-- Cas Campagne Terminee -->
+                            <template v-else>
+                                <div class="text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                                    <i class="pi pi-calendar-times text-4xl text-slate-300 mb-4" />
+                                    <p class="text-slate-800 font-bold text-xl mb-2">Campagne clôturée.</p>
+                                    <p class="text-slate-500">L'arborescence des affectations n'est plus disponible pour les campagnes terminées. Veuillez consulter l'historique.</p>
+                                    <Button label="Voir l'historique" icon="pi pi-history" text class="mt-4" @click="activeTab = 1" />
+                                </div>
+                            </template>
                         </TabPanel>
 
                         <!-- HISTORIQUE (Image 1) -->
@@ -380,6 +458,57 @@ const getStatusSeverity = (status) => status === 'active' || status === 'actif' 
                     </TabPanels>
                 </Tabs>
             </div>
+
+            <!-- MODAL ÉDITION CAMPAGNE -->
+            <Dialog v-model:visible="campaignDialog" header="Modifier la campagne" modal class="p-fluid rounded-2xl" :style="{width: '500px'}">
+                <div class="flex flex-col gap-4 mt-2">
+                    <div>
+                        <label class="font-semibold block mb-1">Nom de la campagne *</label>
+                        <InputText v-model="editForm.name" placeholder="Ex: Campagne Highfive" :class="{'p-invalid': submitted && !editForm.name}" />
+                    </div>
+                    <div>
+                        <label class="font-semibold block mb-1">Description</label>
+                        <Textarea v-model="editForm.description" rows="3" placeholder="Objectifs et détails..." />
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="font-semibold block mb-1">Date début *</label>
+                            <InputText type="date" v-model="editForm.start_date" />
+                        </div>
+                        <div>
+                            <label class="font-semibold block mb-1">Date fin</label>
+                            <InputText type="date" v-model="editForm.end_date" />
+                        </div>
+                    </div>
+                    <div>
+                        <label class="font-semibold block mb-2">Statut</label>
+                        <div class="flex gap-2">
+                            <Button label="Active" :outlined="editForm.status !== 'active'" rounded @click="editForm.status = 'active'" severity="success" size="small" />
+                            <Button label="Inactive" :outlined="editForm.status !== 'inactive'" rounded @click="editForm.status = 'inactive'" severity="warn" size="small" />
+                            <Button label="Terminée" :outlined="editForm.status !== 'terminee'" rounded @click="editForm.status = 'terminee'" severity="secondary" size="small" />
+                        </div>
+                    </div>
+                </div>
+                <template #footer>
+                    <Button label="Annuler" severity="secondary" text @click="campaignDialog = false" />
+                    <Button label="Enregistrer" icon="pi pi-check" @click="saveCampaign" class="px-4" />
+                </template>
+            </Dialog>
+
+            <!-- MODAL CONFIRMATION CLÔTURE -->
+            <Dialog v-model:visible="closeDialog" header="Confirmation de clôture" modal :style="{width: '400px'}">
+                <div class="flex items-center gap-3">
+                    <i class="pi pi-exclamation-triangle text-red-500 text-3xl" />
+                    <div class="flex flex-col">
+                        <span>Voulez-vous clôturer la campagne <b>{{ props.campaign.name }}</b> ?</span>
+                        <span class="text-sm text-slate-500 mt-2 italic">Cette action passera le statut à "Terminée".</span>
+                    </div>
+                </div>
+                <template #footer>
+                    <Button label="Annuler" severity="secondary" text @click="closeDialog = false" />
+                    <Button label="Confirmer la clôture" severity="danger" @click="closeCampaign" />
+                </template>
+            </Dialog>
 
             <!-- MODAL D'AFFECTATION PAR ÉTAPES (Image 2) -->
             <Dialog v-model:visible="assignmentDialog" modal class="p-0 overflow-hidden rounded-3xl" :style="{width: '650px'}" :closable="true">

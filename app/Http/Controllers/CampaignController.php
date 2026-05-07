@@ -135,9 +135,14 @@ class CampaignController extends Controller
      */
     public function changeStatus(Request $request, Campaign $campaign)
     {
+        // On ne réagit pas si la campagne est déjà terminée
+        if ($campaign->status === 'terminee') {
+            return redirect()->back()->with('error', 'Impossible de modifier le statut d\'une campagne terminée.');
+        }
+
         // Validation du nouveau statut
         $validated = $request->validate([
-            'status' => 'required|in:active,inactive,terminee',
+            'status' => 'required|in:active,inactive', // Uniquement actif/inactif via ce bouton
         ]);
 
         // Sauvegarde de l'ancien statut pour la description
@@ -146,7 +151,7 @@ class CampaignController extends Controller
         // Mise à jour du statut
         $campaign->update(['status' => $validated['status']]);
 
-        // Tracé spécifique pour le changement de statut
+        // Tracé spécifique pour le changement de statut (Historique)
         ActivityLog::create([
             'user_id' => Auth::id(),
             'action' => 'status_change',
@@ -160,24 +165,23 @@ class CampaignController extends Controller
     }
 
     /**
-     * Supprimer une campagne
+     * Supprimer une campagne (En réalité, on la clôture/termine)
      */
     public function destroy(Request $request, Campaign $campaign)
     {
-        // On garde le nom avant la suppression pour le log
-        $campaignName = $campaign->name;
-        $campaignId = $campaign->id;
+        // On garde l'ancien statut
+        $oldStatus = $campaign->status;
 
-        // Suppression de la campagne
-        $campaign->delete();
+        // On ne supprime pas physiquement, on change le statut en 'terminee'
+        $campaign->update(['status' => 'terminee']);
 
-        // Enregistrement de la suppression dans l'historique
+        // Enregistrement de la clôture (via bouton supprimer) dans l'historique
         ActivityLog::create([
             'user_id' => Auth::id(),
-            'action' => 'delete',
+            'action' => 'cloture_campagne', // Action plus explicite
             'model_type' => Campaign::class,
-            'model_id' => $campaignId,
-            'description' => "Suppression de la campagne : {$campaignName}",
+            'model_id' => $campaign->id,
+            'description' => "Campagne clôturée : {$campaign->name}. Ancien statut: {$oldStatus}",
             'ip_address' => $request->ip(),
         ]);
 
