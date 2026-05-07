@@ -1,9 +1,10 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { Head } from "@inertiajs/vue3";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
-
+import Dialog from 'primevue/dialog';
+import TimesCard from '@/Components/Timesheets/TimesCard.vue';
 // 1. Récupération des données du controller
 const props = defineProps({
     calendar: Array,
@@ -51,6 +52,17 @@ const formatDateHeader = (dateStr) => {
 const getEntryByDate = (entries, targetDate) => {
     return entries.find((e) => e.date === targetDate) || { is_empty: true };
 };
+const showTimesCard = ref(false);
+
+const selectedCell = ref(null);
+
+const openTimesCard = (data, date) => {
+    selectedCell.value = {
+        employee : data,
+        date : date
+    }
+    showTimesCard.value = true;
+}
 </script>
 
 <template>
@@ -78,34 +90,58 @@ const getEntryByDate = (entries, targetDate) => {
             :header="formatDateHeader(date)"
             class="text-center"
         >
+            <!-- <template #body="{ data }">
+                    <a href="" class="block no-underline">
+                        <section class="cell-content">
+                            <div
+                                v-if="!getEntryByDate(data.entries, date).is_empty"
+                                class="p-2 bg-blue-50 border rounded text-blue-800"
+                            >
+                                <strong>{{
+                                    getEntryByDate(data.entries, date).period_start
+                                }}</strong
+                                ><br />
+                                <strong>{{
+                                    getEntryByDate(data.entries, date).period_end
+                                }}</strong>
+                            </div>
+                            <div
+                                v-else
+                                class="p-4 bg-gray-50 opacity-50 border-dashed border rounded"
+                            >
+                                <span class="text-xs text-gray-400 italic"
+                                    >Absent</span
+                                >
+                            </div>
+                        </section>
+                    </a>
+                </template> -->
             <template #body="{ data }">
-                <section class="cell-content">
-                    <div
-                        v-if="!getEntryByDate(data.entries, date).is_empty"
-                        class="p-2 bg-blue-50 border rounded text-blue-800"
-                    >
-                        <strong>{{
-                            getEntryByDate(data.entries, date).period_start
-                        }}</strong
-                        ><br />
-                        <strong>{{
-                            getEntryByDate(data.entries, date).period_end
-                        }}</strong>
-                    </div>
-                    <div
-                        v-else
-                        class="p-4 bg-gray-50 opacity-50 border-dashed border rounded"
-                    >
-                        <span class="text-xs text-gray-400 italic">Absent</span>
-                    </div>
-                </section>
+                <button
+                    class="w-full h-full p-3 border rounded text-left hover:bg-gray-50 transition"
+                    @click="openTimesCard(data, date)"
+                >
+                    <section class="cell-content">
+                        <span class="text-sm font-semibold text-orange-600">
+                            Brouillon
+                        </span>
+                    </section>
+                </button>
             </template>
+            <template> </template>
         </Column>
 
         <Column header="Total" class="text-right font-bold">
             <template #body>--h</template>
         </Column>
     </DataTable>
+    <Dialog
+   v-model:visible="showTimesCard"
+    modal
+    header="Timesheet"
+    :style="{width: '50rem'}">
+    <TimesCard :data="selectedCell" />
+    </Dialog>
 </template>
 
 <style scoped>
