@@ -26,4 +26,8 @@ class Employee extends Model
     {
         return $this->belongsTo(User::class);
     }
+    public function logs()
+    {
+        return $this->morphMany(ActivityLog::class, 'model');
+    }
 }
