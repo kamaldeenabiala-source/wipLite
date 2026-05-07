@@ -3,6 +3,7 @@
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\AssignmentController; // Importation du contrôleur d'affectations
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -41,7 +42,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('Employees/Index');
     })->name('employees.index');
 
+    // Routes pour la gestion des utilisateurs
     Route::resource('users', UserController::class);
+
+    // Routes pour la gestion des affectations
+    Route::get('/assignments', [AssignmentController::class, 'index'])->name('assignments.index');
+    Route::post('/assignments', [AssignmentController::class, 'store'])->name('assignments.store');
+    Route::post('/assignments/{assignment}/release', [AssignmentController::class, 'release'])->name('assignments.release');
+    Route::post('/assignments/{assignment}/reassign', [AssignmentController::class, 'reassign'])->name('assignments.reassign');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

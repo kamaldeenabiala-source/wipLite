@@ -3,6 +3,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\ActivityLog; // Importation pour la relation activityLogs
 
 #[Fillable(['name', 'description', 'start_date', 'end_date', 'status'])]
 class Campaign extends Model
@@ -28,5 +29,11 @@ protected function casts(): array
         return $this->hasMany(Assignment::class);
     }
 
-
+    /**
+     * Récupérer tous les logs d'activité liés à cette campagne
+     */
+    public function activityLogs()
+    {
+        return $this->morphMany(ActivityLog::class, 'model');
+    }
 }
