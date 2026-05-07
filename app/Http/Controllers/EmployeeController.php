@@ -10,29 +10,35 @@ use Inertia\Inertia;
 class EmployeeController extends Controller
 {
 
-    /*** Liste des employés avec recherche et filtres */
+
+    /**
+     * Liste des employés avec recherche et filtres
+     */
     public function index(Request $request)
     {
         $query = Employee::with('position', 'user');
 
         // Recherche globale
         if ($request->filled('search')) {
-            $query->search($request->search);
+            $query->search($request->input('search'));
         }
 
         // Filtre par statut
         if ($request->filled('status')) {
-            $query->status($request->status);
+            $query->status($request->get('status'));
         }
 
         // Filtre par poste
         if ($request->filled('position_id')) {
-            $query->byPosition($request->position_id);
+            $query->byPosition($request->get('position_id'));
         }
+        $sortField = $request->input('sort_field', 'last_name');
+        $sortOrder = $request->input('sort_order', 'asc');
+        $perPage = $request->get('per_page', 10);
 
         $employees = $query
-            ->orderBy('last_name')
-            ->paginate(10)
+            ->orderBy($sortField, $sortOrder)
+            ->paginate($perPage)
             ->withQueryString();
 
         return Inertia::render('Employees/Index', [
@@ -42,7 +48,10 @@ class EmployeeController extends Controller
         ]);
     }
 
-     /*** Formulaire de création */
+
+    /**
+     * Formulaire de création
+     */
     public function create()
     {
         return Inertia::render('Employees/Create', [
@@ -51,8 +60,9 @@ class EmployeeController extends Controller
         ]);
     }
 
-
-    /*** Enregistrement d'un nouvel employé */
+    /**
+     * Enregistrement d'un nouvel employé
+     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -82,21 +92,25 @@ class EmployeeController extends Controller
         $employee = Employee::create($validated);
 
         return redirect()
-            ->route('employees.show', $employee)
+            ->route('employees.index')
             ->with('success', "L'employé {$employee->full_name} a été créé avec le matricule {$employee->matricule}.");
     }
 
-     /*** Fiche détaillée d'un employé */
+    /**
+     * Fiche détaillée d'un employé
+     */
     public function show(Employee $employee)
     {
-        $employee->load('position', 'user');
-
+        $employee->load('position', 'user','histories.changedBy');
+        // dd($employee);
         return Inertia::render('Employees/Show', [
             'employee' => $employee,
         ]);
     }
 
-     /*** Formulaire de modification */
+    /**
+     * Formulaire de modification
+     */
     public function edit(Employee $employee)
     {
         $employee->load('position', 'user');
@@ -108,7 +122,9 @@ class EmployeeController extends Controller
         ]);
     }
 
-    /*** Mise à jour d'un employé */
+    /**
+     * Mise à jour d'un employé
+     */
     public function update(Request $request, Employee $employee)
     {
         $validated = $request->validate([
@@ -133,18 +149,20 @@ class EmployeeController extends Controller
         $employee->update($validated);
 
         return redirect()
-            ->route('employees.show', $employee)
+            ->route('employees.index', $employee)
             ->with('success', "Les informations de {$employee->full_name} ont été mises à jour.");
     }
 
-    /*** Suppression (soft delete)*/
+    /**
+     * Suppression (soft delete)
+     */
     public function destroy(Employee $employee)
     {
         $name = $employee->full_name;
-        $employee->delete();
+        $employee->update(['status' => 'inactif']);
 
         return redirect()
             ->route('employees.index')
-            ->with('success', "L'employé {$name} a été archivé.");
+            ->with('success', "L'employé {$name} a été désactivé.");
     }
 }

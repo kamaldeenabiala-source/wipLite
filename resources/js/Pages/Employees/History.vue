@@ -1,16 +1,17 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 
-
-
+defineProps({
+    employeeHistory:Array
+})
 
 </script>
 
 
 <template>
-<AppLayout>
 
-    <h1>le formulaire</h1>
+<AppLayout>
+    <pre>{{ employeeHistory }}</pre>
 </AppLayout>
 
 </template>

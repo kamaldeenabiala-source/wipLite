@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Employee extends Model
 {
@@ -94,6 +95,15 @@ class Employee extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    /**
+     * Historique des modifications de l'employé
+     */
+    public function histories(): HasMany
+    {
+        return $this->hasMany(EmployeeHistory::class)->latest();
+    }
+
 
     // -------------------------------------------------------
     // Filtres réutilisables
