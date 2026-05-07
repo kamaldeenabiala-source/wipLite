@@ -378,6 +378,7 @@ const confirmDelete = (employee) => {
                             @click="openEdit(data)"
                         />
                         <Button
+                            v-if="data.status !== 'inactif'"
                             icon="pi pi-trash"
                             variant="outlined"
                             rounded

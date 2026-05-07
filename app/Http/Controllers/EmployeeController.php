@@ -25,16 +25,16 @@ class EmployeeController extends Controller
 
         // Filtre par statut
         if ($request->filled('status')) {
-            $query->status($request->get('status'));
+            $query->status($request->input('status'));
         }
 
         // Filtre par poste
         if ($request->filled('position_id')) {
-            $query->byPosition($request->get('position_id'));
+            $query->byPosition($request->input('position_id'));
         }
         $sortField = $request->input('sort_field', 'last_name');
         $sortOrder = $request->input('sort_order', 'asc');
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->input('per_page', 10);
 
         $employees = $query
             ->orderBy($sortField, $sortOrder)
@@ -45,6 +45,21 @@ class EmployeeController extends Controller
             'employees' => $employees,
             'positions' => Position::all(),
             'filters'   => $request->only('search', 'status', 'position_id'),
+        ]);
+    }
+
+    /** Historique des modifications */
+    public function history(Employee $employee)
+    {
+        $employee->load('position');
+
+        $histories = $employee->histories()
+            ->with('changedBy')
+            ->paginate(15);
+
+        return Inertia::render('Employees/History', [
+            'employee'  => $employee,
+            'histories' => $histories,
         ]);
     }
 
@@ -101,7 +116,7 @@ class EmployeeController extends Controller
      */
     public function show(Employee $employee)
     {
-        $employee->load('position', 'user','histories.changedBy');
+        $employee->load('position', 'user', 'histories.changedBy');
         // dd($employee);
         return Inertia::render('Employees/Show', [
             'employee' => $employee,

@@ -13,10 +13,7 @@ class EmployeeHistoryController extends Controller
      */
     public function index()
     {
-        $employeeHistory = EmployeeHistory::all();
-        return Inertia::render('Employees/History', [
-            'employeeHistory' => $employeeHistory
-        ]);
+        
     }
 
     /**

@@ -8,21 +8,23 @@ use Illuminate\Database\Eloquent\Model;
 class EmployeeHistory extends Model
 {
     use HasFactory;
- 
+
     protected $table = 'employee_histories';
- 
+
     protected $fillable = [
         'employee_id',
+        'old_position_id',
+        'new_position_id',
+        'old_status',
+        'new_status',
         'changed_by',
-        'field',
-        'old_value',
-        'new_value',
+        'reason',
     ];
  
     // -------------------------------------------------------
     // RELATIONS
     // -------------------------------------------------------
- 
+
     /**
      * L'employé concerné par la modification
      */
@@ -30,7 +32,7 @@ class EmployeeHistory extends Model
     {
         return $this->belongsTo(Employee::class);
     }
- 
+
     /**
      * L'utilisateur qui a effectué la modification
      */
