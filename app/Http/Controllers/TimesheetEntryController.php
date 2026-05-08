@@ -37,37 +37,22 @@ class TimesheetEntryController extends Controller
 public function store(StoreTimesheetEntryRequest $request)
 {
     $validated = $request->validated();
-    $employeeIds = $request->input('employee_ids', [$request->employee_id]);
 
-    foreach ($employeeIds as $empId) {
-        $timesheet = Timesheet::firstOrCreate(
-            [
-                'employee_id' => $empId,
-                'period_start' => Carbon::parse($validated['date'])->startOfWeek()->format('Y-m-d'),
-                'period_end' => Carbon::parse($validated['date'])->endOfWeek()->format('Y-m-d'),
-            ],
-            ['status' => 'brouillon']
-        );
+    // On récupère soit les IDs de la sélection multiple, soit l'ID unique du Request
+    // Note : Pour la sélection multiple, ton frontend doit envoyer 'timesheet_ids'
+    $timesheetIds = $request->input('timesheet_ids', [$validated['timesheet_id']]);
 
+    if (empty($timesheetIds)) {
+        return back()->withErrors(['message' => 'Aucune feuille de temps sélectionnée.']);
+    }
+
+    foreach ($timesheetIds as $tsId) {
+        $timesheet = Timesheet::findOrFail($tsId);
+
+        // Sécurité : Ne pas modifier si déjà soumis
         if ($timesheet->status === 'soumis') continue;
 
-        // --- DYNAMISATION DES HEURES PRÉVUES (PLANNED HOURS) ---
-        $date = Carbon::parse($validated['date']);
-        $dayName = strtolower($date->format('l')); // ex: "monday", "tuesday"...
-        $columnName = $dayName . '_hours'; // ex: "monday_hours"
-
-        // On cherche le planning assigné à l'employé à cette date
-        $plannedHours = \DB::table('planning_assignments')
-            ->join('planning_models', 'planning_assignments.planning_model_id', '=', 'planning_models.id')
-            ->where('planning_assignments.employee_id', $empId)
-            ->where('planning_assignments.start_date', '<=', $validated['date'])
-            ->where(function($query) use ($validated) {
-                $query->where('planning_assignments.end_date', '>=', $validated['date'])
-                      ->orWhereNull('planning_assignments.end_date');
-            })
-            ->value("planning_models.$columnName") ?? 0; // 0 si aucun planning trouvé
-
-        // --- CALCUL DU RÉEL ---
+        // Calcul totalHours
         $totalHours = 0;
         if ($validated['check_in'] && $validated['check_out']) {
             $start = Carbon::parse($validated['check_in']);
@@ -75,20 +60,21 @@ public function store(StoreTimesheetEntryRequest $request)
             $totalHours = max(0, ($start->diffInMinutes($end) - ($validated['break_duration'] ?? 0)) / 60);
         }
 
-        // --- SAUVEGARDE CRUD ---
+        // CRUD
         TimesheetEntry::updateOrCreate(
-            ['timesheet_id' => $timesheet->id, 'date' => $validated['date']],
+            ['timesheet_id' => $tsId, 'date' => $validated['date']],
             [
                 'check_in'       => $validated['check_in'],
                 'check_out'      => $validated['check_out'],
                 'break_duration' => $validated['break_duration'] ?? 0,
                 'total_hours'    => $totalHours,
-                'planned_hours'  => $plannedHours, // Valeur dynamique de la BDD !
-                'overtime_hours' => $totalHours - $plannedHours, // Écart réel
+                'planned_hours'  => 7.0, // À dynamiser plus tard
+                'overtime_hours' => $totalHours - 7.0,
                 'comment'        => $validated['comment']
             ]
         );
 
+        // Passage en valide si c'était en brouillon
         if ($timesheet->status === 'brouillon') {
             $timesheet->update(['status' => 'valide']);
         }
@@ -96,6 +82,7 @@ public function store(StoreTimesheetEntryRequest $request)
 
     return back();
 }
+
 
 
 
