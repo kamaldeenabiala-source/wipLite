@@ -105,6 +105,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('/employees', EmployeeController::class);
     Route::resource('/positions', PositionController::class)->only(['index', 'show']);
     Route::get('/employees/{employee}/history', [EmployeeController::class, 'history'])->name('employees.history');
+    Route::post('/timesheet-entries', [TimesheetEntryController::class, 'store'])->name('timesheet-entries.store');
+
     Route::middleware(['role:admin'])->group(function () {
 
         // USERS

@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreTimesheetEntryRequest;
 use App\Http\Requests\UpdateTimesheetEntryRequest;
 use App\Models\Employee;
+use App\Models\Timesheet;
 use App\Models\TimesheetEntry;
+use Carbon\Carbon;
 use Inertia\Inertia;
 
 class TimesheetEntryController extends Controller
@@ -35,45 +37,66 @@ class TimesheetEntryController extends Controller
 public function store(StoreTimesheetEntryRequest $request)
 {
     $validated = $request->validated();
-    $timesheet = \App\Models\Timesheet::findOrFail($validated['timesheet_id']);
+    $employeeIds = $request->input('employee_ids', [$request->employee_id]);
 
-    // --- RÈGLE DE STATUT ---
-    // Si déjà soumis, personne ne peut modifier (même pas le SUP)
-    if ($timesheet->status === 'soumis') {
-        return back()->withErrors(['message' => 'Cette feuille est soumise, modification impossible.']);
-    }
+    foreach ($employeeIds as $empId) {
+        $timesheet = Timesheet::firstOrCreate(
+            [
+                'employee_id' => $empId,
+                'period_start' => Carbon::parse($validated['date'])->startOfWeek()->format('Y-m-d'),
+                'period_end' => Carbon::parse($validated['date'])->endOfWeek()->format('Y-m-d'),
+            ],
+            ['status' => 'brouillon']
+        );
 
-    // --- RÈGLE DE RÔLE (Exemple) ---
-    // On vérifie que l'utilisateur connecté n'est pas un TC (car le TC ne peut pas ajouter/modifier)
-    if (auth()->user()->role->name === 'tc') {
-        abort(403, 'Action non autorisée pour votre profil.');
-    }
+        if ($timesheet->status === 'soumis') continue;
 
-    // ... calcul totalHours ...
-    $start = \Carbon\Carbon::createFromFormat('H:i', $validated['check_in']);
-    $end = \Carbon\Carbon::createFromFormat('H:i', $validated['check_out']);
-    $totalHours = max(0, ($start->diffInMinutes($end) - ($validated['break_duration'] ?? 0)) / 60);
+        // --- DYNAMISATION DES HEURES PRÉVUES (PLANNED HOURS) ---
+        $date = Carbon::parse($validated['date']);
+        $dayName = strtolower($date->format('l')); // ex: "monday", "tuesday"...
+        $columnName = $dayName . '_hours'; // ex: "monday_hours"
 
-    $entry = TimesheetEntry::updateOrCreate(
-        ['timesheet_id' => $validated['timesheet_id'], 'date' => $validated['date']],
-        [
-            'check_in' => $validated['check_in'],
-            'check_out' => $validated['check_out'],
-            'break_duration' => $validated['break_duration'] ?? 0,
-            'total_hours' => $totalHours,
-            'planned_hours' => 7.0, // À dynamiser via planning_models
-            'overtime_hours' => $totalHours - 7.0,
-            'comment' => $validated['comment']
-        ]
-    );
+        // On cherche le planning assigné à l'employé à cette date
+        $plannedHours = \DB::table('planning_assignments')
+            ->join('planning_models', 'planning_assignments.planning_model_id', '=', 'planning_models.id')
+            ->where('planning_assignments.employee_id', $empId)
+            ->where('planning_assignments.start_date', '<=', $validated['date'])
+            ->where(function($query) use ($validated) {
+                $query->where('planning_assignments.end_date', '>=', $validated['date'])
+                      ->orWhereNull('planning_assignments.end_date');
+            })
+            ->value("planning_models.$columnName") ?? 0; // 0 si aucun planning trouvé
 
-    // Si on enregistre, le statut passe à 'valide' (étape avant 'soumis')
-    if ($timesheet->status === 'brouillon') {
-        $timesheet->update(['status' => 'valide']);
+        // --- CALCUL DU RÉEL ---
+        $totalHours = 0;
+        if ($validated['check_in'] && $validated['check_out']) {
+            $start = Carbon::parse($validated['check_in']);
+            $end = Carbon::parse($validated['check_out']);
+            $totalHours = max(0, ($start->diffInMinutes($end) - ($validated['break_duration'] ?? 0)) / 60);
+        }
+
+        // --- SAUVEGARDE CRUD ---
+        TimesheetEntry::updateOrCreate(
+            ['timesheet_id' => $timesheet->id, 'date' => $validated['date']],
+            [
+                'check_in'       => $validated['check_in'],
+                'check_out'      => $validated['check_out'],
+                'break_duration' => $validated['break_duration'] ?? 0,
+                'total_hours'    => $totalHours,
+                'planned_hours'  => $plannedHours, // Valeur dynamique de la BDD !
+                'overtime_hours' => $totalHours - $plannedHours, // Écart réel
+                'comment'        => $validated['comment']
+            ]
+        );
+
+        if ($timesheet->status === 'brouillon') {
+            $timesheet->update(['status' => 'valide']);
+        }
     }
 
     return back();
 }
+
 
 
 
@@ -114,8 +137,15 @@ public function store(StoreTimesheetEntryRequest $request)
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(TimesheetEntry $timesheetEntry)
-    {
-        //
+ public function destroy(TimesheetEntry $entry)
+{
+    $timesheet = $entry->timesheet;
+    
+    if ($timesheet->status !== 'soumis') {
+        $entry->delete();
     }
+
+    return back();
+}
+
 }

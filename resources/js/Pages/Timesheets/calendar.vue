@@ -1,9 +1,10 @@
 <script setup>
 import { computed, ref } from "vue";
-import { Head, usePage } from "@inertiajs/vue3";
+import { Head, usePage, router } from "@inertiajs/vue3";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 import Dialog from "primevue/dialog";
+import Button from 'primevue/button';
 import TimesCard from "./TimesCard.vue";
 import ConfirmDialog from "./ConfirmDialog.vue";
 
@@ -11,7 +12,11 @@ const props = defineProps({
   calendar: Array,
 });
 
-// --- RÉCUPÉRATION DU RÔLE ---
+// --- SÉLECTION MULTIPLE & PAGINATION ---
+const selectedEmployees = ref([]);
+const rows = ref(5); // Limitation à 5 lignes par page
+
+// --- GESTION DES RÔLES ---
 const user = computed(() => usePage().props.auth.user);
 const role = computed(() => user.value?.role?.name || 'TC');
 
@@ -29,7 +34,7 @@ const periodDates = computed(() => {
   return dates;
 });
 
-// --- UTILITAIRES ---
+// --- UTILITAIRES D'AFFICHAGE ---
 const formatHeader = (d) => new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric" }).format(new Date(d));
 
 const getEntry = (entries, date) => {
@@ -50,13 +55,20 @@ const getCellClass = (timesheet, date) => {
     return 'bg-green-50 border-green-200 text-green-800';
 };
 
-const getStatusBadgeClass = (status) => {
-    if (status === 'soumis') return 'bg-emerald-600 text-white';
-    if (status === 'valide') return 'bg-green-500 text-white';
-    return 'bg-gray-400 text-white';
+// --- CALCUL DES TOTALS (STYLE SCORE) ---
+const getTotalsData = (timesheet) => {
+  if (!timesheet.entries) return { worked: 0, planned: 0 };
+  const uniqueEntries = {};
+  timesheet.entries.forEach(entry => {
+    const dateKey = entry.date.split('T')[0];
+    uniqueEntries[dateKey] = { worked: parseFloat(entry.total_hours || 0), planned: parseFloat(entry.planned_hours || 0) };
+  });
+  return Object.values(uniqueEntries).reduce((acc, curr) => {
+    acc.worked += curr.worked; acc.planned += curr.planned; return acc;
+  }, { worked: 0, planned: 0 });
 };
 
-// --- GESTION DES ACTIONS ---
+// --- GESTION DES MODALS ---
 const displayModal = ref(false);
 const showConfirmDialog = ref(false);
 const selectedData = ref(null);
@@ -79,45 +91,60 @@ const openConfirm = (timesheet) => {
     showConfirmDialog.value = true;
 };
 
-// --- CALCUL DES TOTALS ---
-const getTotalsData = (timesheet) => {
-  if (!timesheet.entries) return { worked: 0, planned: 0 };
-  const uniqueEntries = {};
-  timesheet.entries.forEach(entry => {
-    const dateKey = entry.date.split('T')[0];
-    uniqueEntries[dateKey] = {
-      worked: parseFloat(entry.total_hours || 0),
-      planned: parseFloat(entry.planned_hours || 0)
+const openBulkEdit = () => {
+    if (selectedEmployees.value.length === 0) return;
+    selectedData.value = {
+        isBulk: true,
+        employee_ids: selectedEmployees.value.map(e => e.employee.id),
+        employee_name: `${selectedEmployees.value.length} employés sélectionnés`,
+        date: periodDates.value[0], // Par défaut premier jour
     };
-  });
-  return Object.values(uniqueEntries).reduce((acc, curr) => {
-    acc.worked += curr.worked;
-    acc.planned += curr.planned;
-    return acc;
-  }, { worked: 0, planned: 0 });
+    displayModal.value = true;
 };
 </script>
 
 <template>
   <Head title="Calendrier de Pointage" />
+  
   <div class="p-6 bg-white min-h-screen">
-    <DataTable :value="calendar" scrollable class="p-datatable-sm custom-table border rounded-xl overflow-hidden shadow-sm">
-      
+    <!-- Barre d'actions supérieure -->
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-black text-gray-900 uppercase tracking-tighter">Gestion des Flux</h1>
+            <p class="text-gray-500 text-sm">Suivi hebdomadaire des présences</p>
+        </div>
+        <div class="flex gap-3">
+            <Button v-if="selectedEmployees.length > 0" 
+                    label="Saisie Groupée" icon="pi pi-users" 
+                    class="p-button-help p-button-sm shadow-md" 
+                    @click="openBulkEdit" />
+            <Button label="Nouveau Téléconseiller" icon="pi pi-user-plus" 
+                    class="p-button-primary p-button-sm shadow-md" 
+                    @click="router.visit('/employees/create')" />
+        </div>
+    </div>
+
+    <DataTable 
+        :value="calendar" 
+        v-model:selection="selectedEmployees"
+        :paginator="true" 
+        :rows="rows" 
+        dataKey="id"
+        scrollable 
+        class="p-datatable-sm custom-table border rounded-xl overflow-hidden shadow-sm"
+        paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport"
+        currentPageReportTemplate="{first}-{last} sur {totalRecords}"
+    >
+      <!-- Sélection Multiple -->
+      <Column selectionMode="multiple" headerStyle="width: 3rem" frozen></Column>
+
       <!-- Colonne : Employés -->
-      <Column frozen header="Employés" style="min-width: 260px" class="bg-gray-50/50">
+      <Column frozen header="Employés" style="min-width: 250px" class="bg-gray-50/50">
         <template #body="{ data }">
-          <div class="flex flex-col py-2">
+          <div class="flex flex-col py-1">
             <span class="font-bold text-gray-800 text-sm">{{ data.employee.first_name }} {{ data.employee.last_name }}</span>
-            <small class="text-[10px] text-gray-500 mt-1 flex items-center gap-1">
-                <i class="pi pi-user-check text-[9px]"></i>
-                Validé par : 
-                <span class="font-semibold text-gray-700">
-                    {{ data.validator ? `${data.validator.first_name} ${data.validator.last_name}` : 'En attente' }}
-                </span>
-            </small>
-            <span :class="getStatusBadgeClass(data.status)" class="text-[9px] w-fit px-1.5 py-0.5 rounded mt-1.5 font-black uppercase tracking-widest border">
-                {{ data.status }}
-            </span>
+            <small class="text-[10px] text-gray-500 mt-1">ID: {{ data.employee.matricule }}</small>
+            <small class="text-[10px] text-gray-400">Validé par : {{ data.validator?.first_name || 'N/A' }}</small>
           </div>
         </template>
       </Column>
@@ -135,18 +162,14 @@ const getTotalsData = (timesheet) => {
         </template>
       </Column>
 
-      <!-- Colonne : Total avec Style Custom -->
-      <Column header="Total (R/P)" class="text-center" style="min-width: 120px">
+      <!-- Colonne : Total (Style Score avec barre inclinée à 40°) -->
+      <Column header="Total (R/P)" class="text-center" style="min-width: 130px">
         <template #body="{ data }">
-          <div class="total-container flex items-center justify-center gap-1" 
-               :class="getTotalsData(data).worked >= getTotalsData(data).planned ? 'text-green-600' : 'text-red-600'">
-            
-            <span class="real-hours text-lg font-black italic">
+          <div class="total-container flex items-center justify-center gap-1" :class="getTotalsData(data).worked >= getTotalsData(data).planned ? 'text-green-600' : 'text-red-600'">
+            <span class="real-hours text-xl font-black italic">
                 {{ getTotalsData(data).worked.toFixed(1) }}
             </span>
-            
             <span class="separator">/</span>
-            
             <span class="planned-hours text-[10px] font-bold self-end mb-1 text-gray-500">
                 {{ getTotalsData(data).planned.toFixed(1) }}h
             </span>
@@ -154,7 +177,7 @@ const getTotalsData = (timesheet) => {
         </template>
       </Column>
 
-      <!-- Colonne Action -->
+      <!-- Colonne Action (Chef de Plateau uniquement) -->
       <Column header="Action" class="text-center" style="min-width: 70px">
         <template #body="{ data }">
           <div class="flex justify-center">
@@ -174,7 +197,7 @@ const getTotalsData = (timesheet) => {
     </DataTable>
   </div>
 
-  <Dialog v-model:visible="displayModal" :header="'Détails : ' + selectedData?.employee_name" :modal="true" :style="{ width: '400px' }">
+  <Dialog v-model:visible="displayModal" :header="'Pointage'" :modal="true" :style="{ width: '400px' }">
     <TimesCard v-if="displayModal" :data="selectedData" @close="displayModal = false" />
   </Dialog>
 
@@ -182,7 +205,6 @@ const getTotalsData = (timesheet) => {
 </template>
 
 <style scoped>
-/* Style de la table */
 .custom-table :deep(.p-datatable-thead > tr > th) {
     background-color: #f8fafc !important;
     color: #475569 !important;
@@ -192,17 +214,20 @@ const getTotalsData = (timesheet) => {
     text-transform: uppercase;
 }
 
-/* Style de la barre inclinée */
 .separator {
-    font-size: 22px;
-    font-weight: 300;
-    color: #cbd5e1;
-    transform: rotate(15deg);
+    font-size: 26px;
+    font-weight: 200;
+    color: #e2e8f0;
+    transform: rotate(15deg); 
     display: inline-block;
-    margin: 0 2px;
+    margin: 0 4px;
 }
 
-.real-hours {
-    letter-spacing: -1px;
+.real-hours { letter-spacing: -1px; }
+
+:deep(.p-paginator) {
+    border-top: 1px solid #e2e8f0;
+    padding: 0.5rem;
+    font-size: 0.8rem;
 }
 </style>

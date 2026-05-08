@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreTimesheetRequest;
 use App\Http\Requests\UpdateTimesheetRequest;
+use App\Models\Assignment;
+use App\Models\Employee;
 use App\Models\Timesheet;
+use Carbon\Carbon;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 
@@ -59,12 +62,29 @@ class TimesheetController extends Controller
     /**
      * Enregistre une nouvelle ressource.
      */
-    public function store(StoreTimesheetRequest $request)
-    {
-        Timesheet::create($request->validated());
-        return redirect()->route('timesheets.index');
-    }
+ public function store(Request $request) 
+{
+    // 1. Créer l'employé
+    $employee = Employee::create($request->all());
 
+    // 2. L'assigner à un Manager (SUP/CP) via ta table assignments
+    Assignment::create([
+        'employee_id' => $employee.id,
+        'manager_id' => auth()->user()->employee->id,
+        'start_date' => now(),
+        'status' => 'actif'
+    ]);
+
+    // 3. Créer sa feuille de route immédiatement pour qu'il apparaisse au calendrier
+    Timesheet::create([
+        'employee_id' => $employee->id,
+        'period_start' => Carbon::now()->startOfWeek(),
+        'period_end' => Carbon::now()->endOfWeek(),
+        'status' => 'brouillon'
+    ]);
+
+    return redirect()->route('calendar.index');
+}
     /**
      * Affiche une ressource spécifique.
      */
