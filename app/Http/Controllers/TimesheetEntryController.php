@@ -35,10 +35,25 @@ class TimesheetEntryController extends Controller
 public function store(StoreTimesheetEntryRequest $request)
 {
     $validated = $request->validated();
-    
-    // ... tes calculs d'heures existants ...
+    $timesheet = \App\Models\Timesheet::findOrFail($validated['timesheet_id']);
 
-    // 1. Mise à jour ou création de l'entrée
+    // --- RÈGLE DE STATUT ---
+    // Si déjà soumis, personne ne peut modifier (même pas le SUP)
+    if ($timesheet->status === 'soumis') {
+        return back()->withErrors(['message' => 'Cette feuille est soumise, modification impossible.']);
+    }
+
+    // --- RÈGLE DE RÔLE (Exemple) ---
+    // On vérifie que l'utilisateur connecté n'est pas un TC (car le TC ne peut pas ajouter/modifier)
+    if (auth()->user()->role->name === 'tc') {
+        abort(403, 'Action non autorisée pour votre profil.');
+    }
+
+    // ... calcul totalHours ...
+    $start = \Carbon\Carbon::createFromFormat('H:i', $validated['check_in']);
+    $end = \Carbon\Carbon::createFromFormat('H:i', $validated['check_out']);
+    $totalHours = max(0, ($start->diffInMinutes($end) - ($validated['break_duration'] ?? 0)) / 60);
+
     $entry = TimesheetEntry::updateOrCreate(
         ['timesheet_id' => $validated['timesheet_id'], 'date' => $validated['date']],
         [
@@ -46,17 +61,21 @@ public function store(StoreTimesheetEntryRequest $request)
             'check_out' => $validated['check_out'],
             'break_duration' => $validated['break_duration'] ?? 0,
             'total_hours' => $totalHours,
-            'planned_hours' => 7.0, 
+            'planned_hours' => 7.0, // À dynamiser via planning_models
             'overtime_hours' => $totalHours - 7.0,
             'comment' => $validated['comment']
         ]
     );
 
-    // 2. On passe la Timesheet parente en 'valide' dès qu'une modification est faite
-    $entry->timesheet()->update(['status' => 'valide']);
+    // Si on enregistre, le statut passe à 'valide' (étape avant 'soumis')
+    if ($timesheet->status === 'brouillon') {
+        $timesheet->update(['status' => 'valide']);
+    }
 
     return back();
 }
+
+
 
 
 

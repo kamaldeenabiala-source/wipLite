@@ -1,16 +1,21 @@
 <script setup>
 import { computed, ref } from "vue";
-import { Head, router } from "@inertiajs/vue3";
+import { Head, usePage } from "@inertiajs/vue3";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 import Dialog from "primevue/dialog";
 import TimesCard from "./TimesCard.vue";
+import ConfirmDialog from "./ConfirmDialog.vue";
 
 const props = defineProps({
   calendar: Array,
 });
 
-// --- CALCUL DE LA PÉRIODE ---
+// --- RÉCUPÉRATION DU RÔLE ---
+const user = computed(() => usePage().props.auth.user);
+const role = computed(() => user.value?.role?.name || 'TC');
+
+// --- CALCUL DYNAMIQUE DE LA PÉRIODE ---
 const periodDates = computed(() => {
   if (!props.calendar?.length) return [];
   const start = new Date(props.calendar[0].period_start);
@@ -32,21 +37,17 @@ const getEntry = (entries, date) => {
   return found ? { ...found, is_empty: false } : { is_empty: true };
 };
 
-// --- LOGIQUE DES COULEURS (Version Douce) ---
+// --- LOGIQUE DES COULEURS DES CARTES ---
 const getCellClass = (timesheet, date) => {
     const entry = getEntry(timesheet.entries, date);
-    
-    // 1. Absence Totale -> Rouge doux
     if (entry.is_empty) return 'bg-red-50 border-red-200 text-red-700';
 
-    // 2. Heures incomplètes (Réel < Prévu) -> Orange doux
     if (parseFloat(entry.total_hours) < parseFloat(entry.planned_hours)) {
         return 'bg-orange-50 border-orange-200 text-orange-700';
     }
 
-    // 3. Statut Global
-    if (timesheet.status === 'soumis') return 'bg-emerald-100 border-emerald-300 text-emerald-800';
-    return 'bg-green-50 border-green-200 text-green-800'; // Par défaut Saisi/Valide
+    if (timesheet.status === 'soumis') return 'bg-emerald-100 border-emerald-300 text-emerald-800 font-bold';
+    return 'bg-green-50 border-green-200 text-green-800';
 };
 
 const getStatusBadgeClass = (status) => {
@@ -55,14 +56,17 @@ const getStatusBadgeClass = (status) => {
     return 'bg-gray-400 text-white';
 };
 
-// --- ACTIONS ---
+// --- GESTION DES ACTIONS ---
 const displayModal = ref(false);
+const showConfirmDialog = ref(false);
 const selectedData = ref(null);
+const selectedForSubmit = ref(null);
 
 const openTimeCard = (timesheet, date) => {
   selectedData.value = {
     timesheet_id: timesheet.id,
     status: timesheet.status,
+    role: role.value,
     employee_name: `${timesheet.employee.first_name} ${timesheet.employee.last_name}`,
     date: date,
     entry: timesheet.entries.find(e => e.date.startsWith(date)) || null
@@ -70,94 +74,135 @@ const openTimeCard = (timesheet, date) => {
   displayModal.value = true;
 };
 
-const submitTimesheet = (id) => {
-    if (confirm("Soumettre définitivement cette semaine ?")) {
-        router.post(`/timesheets/${id}/submit`);
-    }
+const openConfirm = (timesheet) => {
+    selectedForSubmit.value = { id: timesheet.id, name: `${timesheet.employee.first_name} ${timesheet.employee.last_name}` };
+    showConfirmDialog.value = true;
 };
 
-const calculateTotals = (timesheet) => {
-  const worked = timesheet.entries.reduce((acc, e) => acc + parseFloat(e.total_hours || 0), 0);
-  const planned = timesheet.entries.reduce((acc, e) => acc + parseFloat(e.planned_hours || 0), 0);
-  return `${worked.toFixed(1)}h / ${planned.toFixed(1)}h`;
+// --- CALCUL DES TOTALS ---
+const getTotalsData = (timesheet) => {
+  if (!timesheet.entries) return { worked: 0, planned: 0 };
+  const uniqueEntries = {};
+  timesheet.entries.forEach(entry => {
+    const dateKey = entry.date.split('T')[0];
+    uniqueEntries[dateKey] = {
+      worked: parseFloat(entry.total_hours || 0),
+      planned: parseFloat(entry.planned_hours || 0)
+    };
+  });
+  return Object.values(uniqueEntries).reduce((acc, curr) => {
+    acc.worked += curr.worked;
+    acc.planned += curr.planned;
+    return acc;
+  }, { worked: 0, planned: 0 });
 };
 </script>
 
 <template>
-  <Head title="Timesheet Calendar" />
-  
+  <Head title="Calendrier de Pointage" />
   <div class="p-6 bg-white min-h-screen">
-    <DataTable :value="calendar" scrollable class="p-datatable-sm custom-table">
+    <DataTable :value="calendar" scrollable class="p-datatable-sm custom-table border rounded-xl overflow-hidden shadow-sm">
       
       <!-- Colonne : Employés -->
-      <Column frozen header="Employés" style="min-width: 220px">
+      <Column frozen header="Employés" style="min-width: 260px" class="bg-gray-50/50">
         <template #body="{ data }">
-          <div class="flex flex-col">
-            <span class="font-semibold text-gray-800 text-sm">{{ data.employee.first_name }} {{ data.employee.last_name }}</span>
-            <span :class="getStatusBadgeClass(data.status)" class="text-[9px] w-fit px-1.5 py-0.5 rounded mt-1 font-bold uppercase">
+          <div class="flex flex-col py-2">
+            <span class="font-bold text-gray-800 text-sm">{{ data.employee.first_name }} {{ data.employee.last_name }}</span>
+            <small class="text-[10px] text-gray-500 mt-1 flex items-center gap-1">
+                <i class="pi pi-user-check text-[9px]"></i>
+                Validé par : 
+                <span class="font-semibold text-gray-700">
+                    {{ data.validator ? `${data.validator.first_name} ${data.validator.last_name}` : 'En attente' }}
+                </span>
+            </small>
+            <span :class="getStatusBadgeClass(data.status)" class="text-[9px] w-fit px-1.5 py-0.5 rounded mt-1.5 font-black uppercase tracking-widest border">
                 {{ data.status }}
             </span>
           </div>
         </template>
       </Column>
 
-      <!-- Colonnes : Jours -->
+      <!-- Colonnes Dynamiques : Jours -->
       <Column v-for="date in periodDates" :key="date" :header="formatHeader(date)" class="text-center">
         <template #body="{ data }">
-          <div @click="openTimeCard(data, date)" 
-               :class="getCellClass(data, date)"
-               class="m-1 p-2 border rounded shadow-sm cursor-pointer hover:brightness-95 transition-all flex flex-col items-center justify-center min-h-[55px]">
-            
-            <span class="text-[9px] font-bold uppercase">{{ data.status }}</span>
-            
+          <div @click="openTimeCard(data, date)" :class="getCellClass(data, date)" class="m-1 p-2 border rounded shadow-sm cursor-pointer hover:brightness-95 transition-all flex flex-col items-center justify-center min-h-[60px]">
+            <span class="text-[8px] font-black uppercase tracking-tighter opacity-80">{{ data.status }}</span>
             <div v-if="!getEntry(data.entries, date).is_empty" class="text-xs font-black mt-1">
-                {{ getEntry(data.entries, date).total_hours }}h
+              {{ getEntry(data.entries, date).total_hours }}h
             </div>
-            <div v-else class="text-[9px] font-bold opacity-60">ABSENT</div>
+            <div v-else class="text-[10px] font-bold opacity-60 italic uppercase tracking-tighter">Absent</div>
           </div>
         </template>
       </Column>
 
-      <!-- Colonne : Total -->
-      <Column header="Total" class="text-center" style="min-width: 100px">
+      <!-- Colonne : Total avec Style Custom -->
+      <Column header="Total (R/P)" class="text-center" style="min-width: 120px">
         <template #body="{ data }">
-          <span class="text-xs font-bold text-gray-700">{{ calculateTotals(data) }}</span>
+          <div class="total-container flex items-center justify-center gap-1" 
+               :class="getTotalsData(data).worked >= getTotalsData(data).planned ? 'text-green-600' : 'text-red-600'">
+            
+            <span class="real-hours text-lg font-black italic">
+                {{ getTotalsData(data).worked.toFixed(1) }}
+            </span>
+            
+            <span class="separator">/</span>
+            
+            <span class="planned-hours text-[10px] font-bold self-end mb-1 text-gray-500">
+                {{ getTotalsData(data).planned.toFixed(1) }}h
+            </span>
+          </div>
         </template>
       </Column>
 
-      <!-- Action -->
-      <Column header="Action" class="text-center" style="min-width: 60px">
+      <!-- Colonne Action -->
+      <Column header="Action" class="text-center" style="min-width: 70px">
         <template #body="{ data }">
-          <button @click="submitTimesheet(data.id)" 
-                  :disabled="data.status === 'soumis'"
-                  class="p-1.5 rounded-full transition-colors"
-                  :class="data.status === 'soumis' ? 'text-emerald-500' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'">
-            <svg xmlns="http://w3.org" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path v-if="data.status !== 'soumis'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-          </button>
+          <div class="flex justify-center">
+            <button v-if="role === 'CP' && data.status !== 'soumis'" @click="openConfirm(data)" class="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-all hover:scale-110">
+                <svg xmlns="http://w3.org" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+            </button>
+            <div v-if="data.status === 'soumis'" class="text-emerald-500 p-2">
+                <svg xmlns="http://w3.org" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+            </div>
+          </div>
         </template>
       </Column>
-
     </DataTable>
   </div>
 
-  <Dialog v-model:visible="displayModal" :header="'Pointage : ' + selectedData?.employee_name" :modal="true" :style="{ width: '400px' }">
+  <Dialog v-model:visible="displayModal" :header="'Détails : ' + selectedData?.employee_name" :modal="true" :style="{ width: '400px' }">
     <TimesCard v-if="displayModal" :data="selectedData" @close="displayModal = false" />
   </Dialog>
+
+  <ConfirmDialog v-model:visible="showConfirmDialog" :timesheetId="selectedForSubmit?.id" :employeeName="selectedForSubmit?.name" />
 </template>
 
 <style scoped>
-/* Supprime le style agressif de PrimeVue */
+/* Style de la table */
 .custom-table :deep(.p-datatable-thead > tr > th) {
     background-color: #f8fafc !important;
     color: #475569 !important;
     font-size: 11px !important;
     border: 1px solid #e2e8f0 !important;
-    padding: 10px 5px !important;
+    padding: 12px 6px !important;
+    text-transform: uppercase;
 }
-.custom-table :deep(.p-datatable-tbody > tr > td) {
-    border: 1px solid #f1f5f9 !important;
+
+/* Style de la barre inclinée */
+.separator {
+    font-size: 22px;
+    font-weight: 300;
+    color: #cbd5e1;
+    transform: rotate(15deg);
+    display: inline-block;
+    margin: 0 2px;
+}
+
+.real-hours {
+    letter-spacing: -1px;
 }
 </style>

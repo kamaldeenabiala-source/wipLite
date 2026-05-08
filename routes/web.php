@@ -1,16 +1,17 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\UserController;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TimesheetController;
 use App\Http\Controllers\TimesheetEntryController;
+use App\Http\Controllers\UserController;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 // Redirection intelligente selon le rôle dès l'arrivée sur /
 Route::get('/', function () {
     if (auth()->check()) {
         $role = auth()->user()->role?->name;
+
         return redirect()->route(match ($role) {
             'admin' => 'dashboard.admin',
             'cp' => 'dashboard.cp',
@@ -19,6 +20,7 @@ Route::get('/', function () {
             default => 'dashboard.tc',
         });
     }
+
     return redirect()->route('login');
 });
 
@@ -27,6 +29,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Route /dashboard redirige aussi selon le rôle (évite le bug TeleConseiller pour CP)
     Route::get('/dashboard', function () {
         $role = auth()->user()->role?->name;
+
         return redirect()->route(match ($role) {
             'admin' => 'dashboard.admin',
             'cp' => 'dashboard.cp',
@@ -62,7 +65,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/calendar', [TimesheetController::class, 'index'])->name('calendar.index');
-   // Route pour enregistrer ou mettre à jour une entrée de temps
-});Route::post('/timesheet-entries', [TimesheetEntryController::class, 'store']);
+    // Route pour enregistrer ou mettre à jour une entrée de temps
+});
+Route::post('/timesheet-entries', [TimesheetEntryController::class, 'store']);
+Route::post('/timesheets/{timesheet}/submit', [TimesheetController::class, 'submit'])->name('timesheets.submit');
 
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';
