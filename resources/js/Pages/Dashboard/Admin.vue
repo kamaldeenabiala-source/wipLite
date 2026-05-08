@@ -306,16 +306,16 @@ const exportPdf = () => {
                                 </div>
                             </div>
                             <div class="text-right">
-                                <p class="text-sm font-black text-slate-800">{{ Math.round(emp.user_timesheets_entries_sum_total_hours || 0) }}h</p>
+                                <p class="text-sm font-black text-slate-800">{{ Math.round(emp.timesheet_entries_sum_total_hours || 0) }}h</p>
                                 <div class="flex items-center gap-1">
                                     <div class="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                         <div 
                                             class="h-full bg-emerald-500 rounded-full" 
-                                            :style="{ width: Math.min(((emp.user_timesheets_entries_sum_total_hours || 0) / (emp.user_timesheets_entries_sum_planned_hours || 1)) * 100, 100) + '%' }"
+                                            :style="{ width: Math.min(((emp.timesheet_entries_sum_total_hours || 0) / (emp.timesheet_entries_sum_planned_hours || 1)) * 100, 100) + '%' }"
                                         ></div>
                                     </div>
                                     <span class="text-[10px] font-bold text-slate-400">
-                                        {{ Math.round(((emp.user_timesheets_entries_sum_total_hours || 0) / (emp.user_timesheets_entries_sum_planned_hours || 1)) * 100) }}%
+                                        {{ Math.round(((emp.timesheet_entries_sum_total_hours || 0) / (emp.timesheet_entries_sum_planned_hours || 1)) * 100) }}%
                                     </span>
                                 </div>
                             </div>

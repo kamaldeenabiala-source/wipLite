@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 // use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -44,6 +45,16 @@ class Employee extends Model
         self::STATUS_INACTIF,
         self::STATUS_SUSPENDU,
     ];
+
+    public function timesheets(): HasMany
+    {
+        return $this->hasMany(Timesheet::class);
+    }
+
+    public function timesheetEntries(): HasManyThrough
+    {
+        return $this->hasManyThrough(TimesheetEntry::class, Timesheet::class);
+    }
 
     public function position(): BelongsTo
     {

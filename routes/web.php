@@ -53,17 +53,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/reports/export/excel', [ReportingController::class, 'exportExcel'])->name('reports.export.excel');
     Route::get('/reports/export/pdf', [ReportingController::class, 'exportPdf'])->name('reports.export.pdf');
 
-    Route::get('/dashboard/cp', function () {
-        return Inertia::render('Dashboard/ChefPlateau');
-    })->middleware('role:cp,admin')->name('dashboard.cp');
+    Route::get('/dashboard/cp', [ReportingController::class, 'chefPlateau'])->middleware('role:cp,admin')->name('dashboard.cp');
 
-    Route::get('/dashboard/sup', function () {
-        return Inertia::render('Dashboard/Superviseur');
-    })->middleware('role:sup,admin')->name('dashboard.sup');
+    Route::get('/dashboard/sup', [ReportingController::class, 'superviseur'])->middleware('role:sup,admin')->name('dashboard.sup');
 
-    Route::get('/dashboard/tc', function () {
-        return Inertia::render('Dashboard/TeleConseiller');
-    })->middleware('role:tc,admin')->name('dashboard.tc');
+    Route::get('/dashboard/tc', [ReportingController::class, 'teleConseiller'])->middleware('role:tc,admin')->name('dashboard.tc');
 
     Route::get('/employees', function () {
         return Inertia::render('Employees/Index');
@@ -139,9 +133,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     |--------------------------------------------------------------------------
     */
 
-    Route::get('/dashboard/admin', [ReportingController::class, 'admin'])
-        ->middleware('role:admin')
-        ->name('dashboard.admin');
 
     Route::get('/dashboard/admin/stats', [ReportingController::class, 'generalStats'])
         ->middleware('role:admin')
@@ -151,17 +142,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('role:admin')
         ->name('dashboard.admin.alerts');
 
-    Route::get('/dashboard/cp', [ReportingController::class, 'cp'])
-        ->middleware('role:cp,admin')
-        ->name('dashboard.cp');
-
-    Route::get('/dashboard/sup', [ReportingController::class, 'sup'])
-        ->middleware('role:sup,admin')
-        ->name('dashboard.sup');
-
-    Route::get('/dashboard/tc', [ReportingController::class, 'tc'])
-        ->middleware('role:tc,admin')
-        ->name('dashboard.tc');
 
     /*
     |--------------------------------------------------------------------------
