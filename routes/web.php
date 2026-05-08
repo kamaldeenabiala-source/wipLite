@@ -106,9 +106,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/cp', [AssignmentController::class, 'index'])->name('cp');
         Route::get('/sup', [AssignmentController::class, 'index'])->name('sup');
         Route::get('/tc', [AssignmentController::class, 'index'])->name('tc');
-        Route::get('/hierarchy', [AssignmentController::class, 'index'])->name('hierarchy');
+        Route::get('/hierarchy', [AssignmentController::class, 'hierarchy'])->name('hierarchy');
         Route::get('/reassign', [AssignmentController::class, 'index'])->name('reassign');
-        Route::get('/history', [AssignmentController::class, 'index'])->name('history');
+        Route::get('/history', [AssignmentController::class, 'history'])->name('history');
         Route::get('/tree', [AssignmentController::class, 'index'])->name('tree');
         Route::post('/{assignment}/release', [AssignmentController::class, 'release'])->name('release');
         Route::post('/{assignment}/reassign', [AssignmentController::class, 'reassign'])->name('reassign');
