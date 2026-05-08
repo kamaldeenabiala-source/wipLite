@@ -37,7 +37,7 @@ class ReportingController extends Controller
 
                 'overtimeHours' => TimesheetEntry::sum('overtime_hours'),
 
-                'pendingTimesheets' => Timesheet::where('status', 'submitted')->count(),
+                'pendingTimesheets' => Timesheet::where('status', 'soumis')->count(),
 
             ],
 
@@ -121,7 +121,7 @@ class ReportingController extends Controller
 
                 'overtimeHours' => TimesheetEntry::sum('overtime_hours'),
 
-                'pendingTimesheets' => Timesheet::where('status', 'submitted')->count(),
+                'pendingTimesheets' => Timesheet::where('status', 'soumis')->count(),
             ]
         ]);
     }
@@ -142,7 +142,7 @@ class ReportingController extends Controller
 
                 'overtimeHours' => TimesheetEntry::sum('overtime_hours'),
 
-                'pendingTimesheets' => Timesheet::where('status', 'submitted')->count(),
+                'pendingTimesheets' => Timesheet::where('status', 'soumis')->count(),
             ]
         ]);
     }
@@ -192,6 +192,16 @@ class ReportingController extends Controller
     public function timesheets()
     {
         return Inertia::render('Reports/Timesheets');
+    }
+
+    public function team()
+    {
+        return Inertia::render('Reports/Team');
+    }
+
+    public function productivity()
+    {
+        return Inertia::render('Reports/Productivity');
     }
 
     /*
