@@ -90,10 +90,7 @@ watch(() => page.url, findActiveMenu);
 
         { label: 'Liste des employés',     href: '/employees' },
 
-        { label: 'Ajouter un employé',     href: '/employees/create' },
-
-        { label: 'Employés affectés',      href: '/employees/assigned' },
-        { label: 'Employés inactifs',     href: '/employees/inactifs' },
+        { label: 'Employés affectés',     href: '/employees/assigned' },
 
         { label: 'Employés non affectés',  href: '/employees/unassigned' },
 

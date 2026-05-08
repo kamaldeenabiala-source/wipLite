@@ -373,6 +373,7 @@ const exportPdf = () => {
     </AppLayout>
 </template>
 
+<<<<<<< HEAD
 <style scoped>
 .custom-scrollbar::-webkit-scrollbar {
     width: 4px;
@@ -388,3 +389,31 @@ const exportPdf = () => {
     background: #cbd5e1;
 }
 </style>
+=======
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+<div class="bg-white p-6 rounded-3xl shadow-sm">
+<p>Employés</p>
+<h1 class="text-4xl font-black">{{ stats.employees }}</h1>
+</div>
+
+<div class="bg-white p-6 rounded-3xl shadow-sm">
+<p>Campagnes</p>
+<h1 class="text-4xl font-black">{{ stats.campaigns }}</h1>
+</div>
+
+<div class="bg-white p-6 rounded-3xl shadow-sm">
+<p>Affectations</p>
+<h1 class="text-4xl font-black">{{ stats.assignments }}</h1>
+</div>
+
+<div class="bg-white p-6 rounded-3xl shadow-sm">
+<p>Heures</p>
+<h1 class="text-4xl font-black">{{ stats.workedHours }}</h1>
+</div>
+
+</div>
+
+</AppLayout>
+</template>
+>>>>>>> c36fb09ec3e2707d3dc351ba2461e88d4d276556

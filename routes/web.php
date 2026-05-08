@@ -17,6 +17,8 @@ use App\Http\Controllers\CampaignController;
 // use App\Http\Controllers\TimesheetController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\TimesheetController as ControllersTimesheetController;
+// use App\Http\Controllers\AssignmentController; // Importation du contrôleur d'affectations
+// use App\Http\Controllers\PlanningAssignmentController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -63,11 +65,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/dashboard/tc', [ReportingController::class, 'teleConseiller'])->middleware('role:tc,admin')->name('dashboard.tc');
 
-    Route::get('/employees', function () {
-        return Inertia::render('Employees/Index');
-    })->middleware('role:admin')->name('employees.index');
+    
     Route::get('/users/roles', [RoleController::class, 'index'])
-            ->name('roles.index');
+        ->name('roles.index');
 
     // --- GESTION DES PLANNINGS ---
     Route::middleware('role:cp,admin')->prefix('planning')->name('planning.')->group(function () {
@@ -158,6 +158,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/employees/{employee}/history', [EmployeeController::class, 'history'])->name('employees.history');
     Route::post('/timesheet-entries', [TimesheetEntryController::class, 'store'])->name('timesheet-entries.store');
 
+    Route::get('/employees/history',    [EmployeeController::class, 'history'])->name('employees.history');//r
+    Route::resource('/employees', EmployeeController::class);//r
+    Route::resource('/positions', PositionController::class)->only(['index', 'show']);//r
+
     Route::middleware(['role:admin'])->group(function () {
 
         // USERS
@@ -230,10 +234,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/export/excel', [ReportingController::class, 'exportExcel']);
     });
-
 });
 Route::post('/timesheet-entries', [TimesheetEntryController::class, 'store']);
 Route::post('/timesheets/{timesheet}/submit', [TimesheetController::class, 'submit'])->name('timesheets.submit');
 
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';
