@@ -94,11 +94,17 @@ const openConfirm = (timesheet) => {
 
 const openBulkEdit = () => {
     if (selectedEmployees.value.length === 0) return;
+
     selectedData.value = {
         isBulk: true,
-        employee_ids: selectedEmployees.value.map(e => e.employee.id),
+     timesheet_ids: selectedEmployees.value.map(item => item.id),
         employee_name: `${selectedEmployees.value.length} employés sélectionnés`,
-        date: periodDates.value[0], // Par défaut premier jour
+   // ENVOI DU TABLEAU DE DATES COMPLET (Crucial pour le dropdown)
+        all_dates: periodDates.value, 
+        
+        role: role.value,
+        status: 'brouillon', // On autorise la modif en bulk seulement si non soumis
+        timesheet_id: selectedEmployees.value[0].id // ID témoin pour Laravel Reques
     };
     displayModal.value = true;
 };
