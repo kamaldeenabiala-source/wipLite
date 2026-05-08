@@ -111,28 +111,24 @@ const weekDays = [
     <Head title="Modèles de Planning" />
 
     <AppLayout>
-        <template #header>
-            <div class="mb-6">
-                <div class="flex justify-between items-center gap-8 mb-4">
-                    <div class="min-w-0">
-                        <h2 class="text-xl font-black text-slate-800 truncate">
-                            Paramétrage Plannings
-                        </h2>
-                        <p class="text-blue-500/70 text-[10px] font-bold uppercase tracking-widest mt-1">
-                            Gérez vos structures horaires hebdomadaires
-                        </p>
-                    </div>
-
-                    <Button
-                        @click="openCreateModal"
-                        class="flex-shrink-0 !bg-blue-600 !border-none !rounded-xl !px-6 !py-3 flex items-center gap-2 shadow-lg shadow-blue-100 hover:!bg-blue-700 transition-all"
-                    >
-                        <Plus class="w-4 h-4 text-white" />
-                        <span class="font-bold text-white text-sm whitespace-nowrap">Nouveau modèle</span>
-                    </Button>
-                </div>
+        <div class="mb-8 flex justify-between items-center bg-white/50 backdrop-blur-sm p-6 rounded-[2rem] border border-white shadow-sm">
+            <div class="min-w-0">
+                <h2 class="text-2xl font-black text-slate-800 tracking-tight">
+                    Paramétrage Plannings
+                </h2>
+                <p class="text-blue-500/70 text-xs font-bold uppercase tracking-widest mt-1">
+                    Gérez vos structures horaires hebdomadaires
+                </p>
             </div>
-        </template>
+
+            <Button
+                @click="openCreateModal"
+                class="flex-shrink-0 !bg-blue-600 !border-none !rounded-2xl !px-8 !py-4 flex items-center gap-3 shadow-xl shadow-blue-500/20 hover:!bg-blue-700 hover:-translate-y-0.5 transition-all"
+            >
+                <Plus class="w-5 h-5 text-white" />
+                <span class="font-black text-white text-sm uppercase tracking-wider">Nouveau modèle</span>
+            </Button>
+        </div>
 
         <!-- Grille des plannings -->
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 py-6">
