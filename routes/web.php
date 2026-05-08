@@ -9,6 +9,9 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportingController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\AssignmentController; // Importation du contrôleur d'affectations
+use App\Http\Controllers\PlanningAssignmentController;
+use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -57,22 +60,43 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('Dashboard/TeleConseiller');
     })->middleware('role:tc,admin')->name('dashboard.tc');
 
-    Route::get('/employees', function () {
-        return Inertia::render('Employees/Index');
-    })->middleware('role:admin')->name('employees.index');
+    
     Route::get('/users/roles', [RoleController::class, 'index'])
-            ->name('roles.index');
+        ->name('roles.index');
 
+    // Routes pour la gestion des utilisateurs
+    Route::resource('users', UserController::class);
     Route::resource('users', UserController::class)->middleware('role:admin');
-    Route::resource('planning/models', PlanningModelsController::class)->middleware('role:admin')->names('planning.models');
+
+    // Planning Models
+    Route::resource('planning/models', PlanningModelsController::class)->middleware('role:cp,admin')->names('planning.models');
+
+    // Planning Assignments
+    Route::resource('planning/assignments', PlanningAssignmentController::class)->middleware('role:cp,admin')->names('planning.assignments');
+
+    // Additional planning routes that match sidebar
+    Route::get('planning/validate', [PlanningAssignmentController::class, 'validation'])->middleware('role:cp,admin')->name('planning.validate');
+    Route::get('planning/history', [PlanningAssignmentController::class, 'history'])->middleware('role:cp,admin')->name('planning.history');
+    Route::post('planning/assignments/{id}/validate', [PlanningAssignmentController::class, 'validateAssignment'])->middleware('role:cp,admin')->name('planning.assignments.validate');
+    Route::post('planning/assignments/bulk-validate', [PlanningAssignmentController::class, 'bulkValidate'])->middleware('role:cp,admin')->name('planning.assignments.bulk-validate');
+    Route::post('planning/assignments/validate-all', [PlanningAssignmentController::class, 'validateAll'])->middleware('role:cp,admin')->name('planning.assignments.validate-all');
+    Route::post('planning/assignments/{id}/suspend', [PlanningAssignmentController::class, 'suspendAssignment'])->middleware('role:cp,admin')->name('planning.assignments.suspend');
+    Route::post('planning/assignments/{id}/terminate', [PlanningAssignmentController::class, 'terminateAssignment'])->middleware('role:cp,admin')->name('planning.assignments.terminate');
+
+    // Routes pour la gestion des affectations
+    Route::get('/assignments', [AssignmentController::class, 'index'])->name('assignments.index');
+    Route::post('/assignments', [AssignmentController::class, 'store'])->name('assignments.store');
+    Route::post('/assignments/{assignment}/release', [AssignmentController::class, 'release'])->name('assignments.release');
+    Route::post('/assignments/{assignment}/reassign', [AssignmentController::class, 'reassign'])->name('assignments.reassign');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    Route::resource('/employees', EmployeeController::class);
-    Route::resource('/positions', PositionController::class)->only(['index', 'show']);
-    Route::get('/employees/{employee}/history', [EmployeeController::class, 'history'])->name('employees.history');
+    Route::get('/employees/history',    [EmployeeController::class, 'history'])->name('employees.history');//r
+    Route::resource('/employees', EmployeeController::class);//r
+    Route::resource('/positions', PositionController::class)->only(['index', 'show']);//r
+
     Route::middleware(['role:admin'])->group(function () {
 
         // USERS
@@ -155,8 +179,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/export/excel', [ReportingController::class, 'exportExcel']);
     });
-
 });
 
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

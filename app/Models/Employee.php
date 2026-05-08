@@ -44,17 +44,38 @@ class Employee extends Model
         self::STATUS_SUSPENDU,
     ];
 
-    // -------------------------------------------------------
-    // Génération automatique du matricule
-    // -------------------------------------------------------
 
+    // -------------------------------------------------------
+    // BOOT
+    // -------------------------------------------------------
     protected static function boot(): void
     {
         parent::boot();
-
+ 
+        // Génération automatique du matricule
         static::creating(function (Employee $employee) {
             if (empty($employee->matricule)) {
                 $employee->matricule = self::generateMatricule();
+            }
+        });
+ 
+        // Historisation automatique — uniquement position et statut
+        static::updating(function (Employee $employee) {
+            $dirty = $employee->getDirty();
+ 
+            // On ne track que si position_id ou status a changé
+            $hasPositionChange = array_key_exists('position_id', $dirty);
+            $hasStatusChange   = array_key_exists('status', $dirty);
+ 
+            if ($hasPositionChange || $hasStatusChange) {
+                EmployeeHistory::create([
+                    'employee_id'     => $employee->id,
+                    'old_position_id' => $employee->getOriginal('position_id'),
+                    'new_position_id' => $dirty['position_id'] ?? $employee->getOriginal('position_id'),
+                    'old_status'      => $employee->getOriginal('status'),
+                    'new_status'      => $dirty['status'] ?? $employee->getOriginal('status'),
+                    'changed_by'      => auth()->id(),
+                ]);
             }
         });
     }
