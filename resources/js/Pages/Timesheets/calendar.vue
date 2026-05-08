@@ -7,6 +7,7 @@ import Dialog from "primevue/dialog";
 import Button from 'primevue/button';
 import TimesCard from "./TimesCard.vue";
 import ConfirmDialog from "./ConfirmDialog.vue";
+import AppLayout from "@/Layouts/AppLayout.vue";
 
 const props = defineProps({
   calendar: Array,
@@ -105,6 +106,7 @@ const openBulkEdit = () => {
 
 <template>
   <Head title="Calendrier de Pointage" />
+  <AppLayout>
   
   <div class="p-6 bg-white min-h-screen">
     <!-- Barre d'actions supérieure -->
@@ -202,6 +204,7 @@ const openBulkEdit = () => {
   </Dialog>
 
   <ConfirmDialog v-model:visible="showConfirmDialog" :timesheetId="selectedForSubmit?.id" :employeeName="selectedForSubmit?.name" />
+</AppLayout>
 </template>
 
 <style scoped>
