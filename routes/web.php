@@ -6,10 +6,13 @@ use App\Http\Controllers\PositionController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\PlanningModelsController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\TimesheetController;
+use App\Http\Controllers\TimesheetEntryController;
 use App\Http\Controllers\ReportingController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AssignmentController; // Importation du contrôleur d'affectations
+use App\Http\Controllers\PlanningAssignmentController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -18,14 +21,16 @@ use Inertia\Inertia;
 Route::get('/', function () {
     if (auth()->check()) {
         $role = auth()->user()->role?->name;
+
         return redirect()->route(match ($role) {
             'admin' => 'dashboard.admin',
-            'cp'    => 'dashboard.cp',
-            'sup'   => 'dashboard.sup',
-            'tc'    => 'dashboard.tc',
+            'cp' => 'dashboard.cp',
+            'sup' => 'dashboard.sup',
+            'tc' => 'dashboard.tc',
             default => 'dashboard.tc',
         });
     }
+
     return redirect()->route('login');
 });
 
@@ -34,11 +39,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Route /dashboard redirige aussi selon le rôle (évite le bug TeleConseiller pour CP)
     Route::get('/dashboard', function () {
         $role = auth()->user()->role?->name;
+
         return redirect()->route(match ($role) {
             'admin' => 'dashboard.admin',
-            'cp'    => 'dashboard.cp',
-            'sup'   => 'dashboard.sup',
-            'tc'    => 'dashboard.tc',
+            'cp' => 'dashboard.cp',
+            'sup' => 'dashboard.sup',
+            'tc' => 'dashboard.tc',
             default => 'dashboard.tc',
         });
     })->name('dashboard');
@@ -93,6 +99,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/calendar', [TimesheetController::class, 'index'])->name('calendar.index');
+    // Route pour enregistrer ou mettre à jour une entrée de temps
 
     Route::resource('/employees', EmployeeController::class);
     Route::resource('/positions', PositionController::class)->only(['index', 'show']);
@@ -181,6 +189,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
 });
+Route::post('/timesheet-entries', [TimesheetEntryController::class, 'store']);
+Route::post('/timesheets/{timesheet}/submit', [TimesheetController::class, 'submit'])->name('timesheets.submit');
 
 
 require __DIR__.'/auth.php';
