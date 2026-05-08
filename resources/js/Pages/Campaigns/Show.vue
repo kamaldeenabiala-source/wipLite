@@ -187,56 +187,76 @@ const saveAssignment = () => {
     });
 };
 
-// --- GESTION RÉAFFECTATION / LIBÉRATION ---
+// --- GESTION UNIQUE DE L'AFFECTATION (Zéro Orphelin) ---
 
-const reassignDialog = ref(false);
-const releaseDialog = ref(false);
-const selectedAssignment = ref(null);
-const reassignData = ref({ manager_id: null, start_date: new Date().toISOString().substr(0, 10), reason: '' });
-const releaseData = ref({ mode: 'solo', reason: '' });
+const manageDialog = ref(false);
+const manageStep = ref('choice'); // 'choice', 'transfer', 'release'
+const manageData = ref({
+    mode: null, // 'transfer', 'release'
+    new_manager_id: null,
+    reason: ''
+});
 
 /**
- * Ouvre le modal de réaffectation (Image 4)
+ * Ouvre le modal unique de gestion
  */
-const openReassign = (assignment) => {
+const openManage = (assignment) => {
     selectedAssignment.value = assignment;
-    reassignData.value = { 
-        manager_id: assignment.manager_id, 
-        start_date: new Date().toISOString().substr(0, 10),
-        reason: '' 
+    manageData.value = {
+        mode: null,
+        new_manager_id: null,
+        reason: ''
     };
-    reassignDialog.value = true;
+    manageStep.value = 'choice';
+    manageDialog.value = true;
 };
 
 /**
- * Enregistre la réaffectation
+ * Sélectionne le mode (Transfert ou Libération)
  */
-const executeReassign = () => {
-    router.post(`/assignments/${selectedAssignment.value.id}/reassign`, reassignData.value, {
+const selectManageMode = (mode) => {
+    manageData.value.mode = mode;
+    if (mode === 'transfer') {
+        manageStep.value = 'transfer';
+    } else {
+        manageStep.value = 'release';
+    }
+};
+
+/**
+ * Exécute l'action de gestion (Libération ou Transfert)
+ */
+const executeManage = () => {
+    const payload = {
+        mode: manageData.value.mode === 'transfer' ? 'transfer' : 'cascade',
+        new_manager_id: manageData.value.new_manager_id,
+        reason: manageData.value.reason
+    };
+
+    router.post(`/assignments/${selectedAssignment.value.id}/release`, payload, {
         onSuccess: () => {
-            toast.add({ severity: 'success', summary: 'Succès', detail: 'Ressource réaffectée', life: 3000 });
-            reassignDialog.value = false;
+            toast.add({ 
+                severity: 'success', 
+                summary: 'Succès', 
+                detail: manageData.value.mode === 'transfer' ? 'Chaîne transférée avec succès' : 'Ressources libérées avec succès', 
+                life: 3000 
+            });
+            manageDialog.value = false;
         }
     });
 };
 
-/**
- * Ouvre le modal de libération
- */
-const openRelease = (assignment) => {
-    selectedAssignment.value = assignment;
-    releaseData.value = { mode: 'solo', reason: '' };
-    releaseDialog.value = true;
-};
-
-const executeRelease = () => {
-    router.post(`/assignments/${selectedAssignment.value.id}/release`, releaseData.value, {
-        onSuccess: () => {
-            toast.add({ severity: 'success', summary: 'Succès', detail: 'Action effectuée', life: 3000 });
-            releaseDialog.value = false;
-        }
-    });
-};
+// Managers disponibles pour le transfert (doivent avoir le même rôle que la personne qui part)
+const availableTransferManagers = computed(() => {
+    if (!selectedAssignment.value) return [];
+    
+    // On cherche les employés qui ont la même position et qui sont actifs sur la campagne
+    // mais qui ne sont pas la personne sélectionnée
+    return props.assignments.filter(a => 
+        a.position_id === selectedAssignment.value.position_id && 
+        a.employee_id !== selectedAssignment.value.employee_id
+    );
+});
 
 // Utilitaires d'affichage
 const getInitials = (first, last) => (first?.[0] || '') + (last?.[0] || '');
@@ -351,10 +371,15 @@ const getStatusSeverity = (status) => status === 'active' || status === 'actif' 
                                                     <span>Depuis le {{ cp.start_date }}</span>
                                                 </div>
                                             </div>
-                                            <!-- Actions au survol (Image 1) -->
-                                            <div v-show="hoveredId === cp.id" class="flex gap-2 animate-fade-in">
-                                                <Button icon="pi pi-eye" severity="secondary" text rounded size="small" v-tooltip.top="'Voir'" />
-                                                <Button icon="pi pi-sign-out" severity="danger" text rounded size="small" v-tooltip.top="'Libérer'" @click="openRelease(cp)" />
+                                            <!-- Bouton d'action unique (Zéro Orphelin) -->
+                                            <div class="flex gap-2 animate-fade-in">
+                                                <Button 
+                                                    icon="pi pi-cog" 
+                                                    severity="secondary" 
+                                                    text rounded size="small" 
+                                                    v-tooltip.top="'Gérer l\'affectation'" 
+                                                    @click="openManage(cp)"
+                                                />
                                             </div>
                                         </div>
 
@@ -377,11 +402,15 @@ const getStatusSeverity = (status) => status === 'active' || status === 'actif' 
                                                         </div>
                                                         <div class="text-slate-400 text-xs mt-1">{{ sup.employee.matricule }} • Depuis le {{ sup.start_date }}</div>
                                                     </div>
-                                                    <!-- Actions au survol -->
-                                                    <div v-show="hoveredId === sup.id" class="flex gap-2 animate-fade-in">
-                                                        <Button icon="pi pi-sync" severity="info" text rounded size="small" v-tooltip.top="'Réaffecter'" @click="openReassign(sup)" />
-                                                        <Button icon="pi pi-eye" severity="secondary" text rounded size="small" v-tooltip.top="'Voir'" />
-                                                        <Button icon="pi pi-sign-out" severity="danger" text rounded size="small" v-tooltip.top="'Libérer'" @click="openRelease(sup)" />
+                                                    <!-- Bouton d'action unique -->
+                                                    <div class="flex gap-2 animate-fade-in">
+                                                        <Button 
+                                                            icon="pi pi-cog" 
+                                                            severity="secondary" 
+                                                            text rounded size="small" 
+                                                            v-tooltip.top="'Gérer l\'affectation'" 
+                                                            @click="openManage(sup)"
+                                                        />
                                                     </div>
                                                 </div>
 
@@ -402,11 +431,15 @@ const getStatusSeverity = (status) => status === 'active' || status === 'actif' 
                                                                 </div>
                                                                 <div class="text-slate-400 text-[10px]">{{ tc.employee.matricule }} • Depuis le {{ tc.start_date }}</div>
                                                             </div>
-                                                            <!-- Actions au survol -->
-                                                            <div v-show="hoveredId === tc.id" class="flex gap-2 animate-fade-in">
-                                                                <Button icon="pi pi-sync" severity="info" text rounded size="small" v-tooltip.top="'Réaffecter'" @click="openReassign(tc)" />
-                                                                <Button icon="pi pi-eye" severity="secondary" text rounded size="small" v-tooltip.top="'Voir'" />
-                                                                <Button icon="pi pi-sign-out" severity="danger" text rounded size="small" v-tooltip.top="'Libérer'" @click="openRelease(tc)" />
+                                                            <!-- Bouton d'action unique -->
+                                                            <div class="flex gap-2 animate-fade-in">
+                                                                <Button 
+                                                                    icon="pi pi-cog" 
+                                                                    severity="secondary" 
+                                                                    text rounded size="small" 
+                                                                    v-tooltip.top="'Gérer l\'affectation'" 
+                                                                    @click="openManage(tc)"
+                                                                />
                                                             </div>
                                                         </div>
                                                     </div>
@@ -631,11 +664,11 @@ const getStatusSeverity = (status) => status === 'active' || status === 'actif' 
                 </template>
             </Dialog>
 
-            <!-- MODAL DE RÉAFFECTATION (Image 4) -->
-            <Dialog v-model:visible="reassignDialog" modal class="p-0 overflow-hidden rounded-3xl" :style="{width: '550px'}">
+            <!-- MODAL UNIQUE DE GESTION (Zéro Orphelin) -->
+            <Dialog v-model:visible="manageDialog" modal class="p-0 overflow-hidden rounded-3xl" :style="{width: '550px'}" :closable="true">
                 <template #header>
                     <div class="px-8 pt-8 pb-4">
-                        <h2 class="text-2xl font-bold text-slate-900">Réaffecter une ressource</h2>
+                        <h2 class="text-2xl font-bold text-slate-900">Gestion de l'affectation</h2>
                     </div>
                 </template>
 
@@ -643,44 +676,112 @@ const getStatusSeverity = (status) => status === 'active' || status === 'actif' 
                     <div v-if="selectedAssignment" class="flex flex-col gap-6">
                         <!-- Résumé de la ressource -->
                         <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-3">
-                            <span class="text-slate-500">Employé sélectionné :</span>
-                            <span class="font-bold text-slate-900">{{ selectedAssignment.employee.first_name }} {{ selectedAssignment.employee.last_name }}</span>
-                            <Tag :value="selectedAssignment.position.code" severity="info" class="text-[10px]" />
+                            <Avatar :label="getInitials(selectedAssignment.employee.first_name, selectedAssignment.employee.last_name)" shape="circle" class="bg-blue-100 text-blue-600 font-bold" />
+                            <div class="flex flex-col">
+                                <span class="font-bold text-slate-900">{{ selectedAssignment.employee.first_name }} {{ selectedAssignment.employee.last_name }}</span>
+                                <span class="text-xs text-slate-500">{{ selectedAssignment.position.name }}</span>
+                            </div>
                         </div>
 
-                        <!-- Choix du nouveau responsable -->
-                        <div>
-                            <label class="font-bold text-slate-900 block mb-1">
-                                {{ selectedAssignment.position.code === 'TC' ? 'Superviseur *' : 'Chef de Plateau *' }}
-                            </label>
-                            <Dropdown 
-                                v-model="reassignData.manager_id" 
-                                :options="selectedAssignment.position.code === 'TC' ? props.assignments.filter(a => a.position.code === 'SUP') : props.assignments.filter(a => a.position.code === 'CP')" 
-                                optionLabel="employee.email" 
-                                optionValue="employee_id" 
-                                placeholder="Choisir le nouveau responsable..." 
-                                class="w-full rounded-xl border-slate-200" 
-                            />
+                        <!-- ÉTAPE 1 : CHOIX DE L'ACTION -->
+                        <div v-if="manageStep === 'choice'" class="flex flex-col gap-4">
+                            <p class="text-slate-600">Comment souhaitez-vous gérer le départ de ce responsable ?</p>
+                            
+                            <!-- Option 1: Remplacer (Garder les subordonnés) -->
+                            <div v-if="selectedAssignment.position.code !== 'TC'"
+                                 @click="availableTransferManagers.length > 0 ? selectManageMode('transfer') : null" 
+                                 class="flex items-center gap-4 p-5 rounded-2xl border-2 transition-all cursor-pointer"
+                                 :class="[
+                                    'border-slate-100 hover:border-blue-200 hover:bg-blue-50/30',
+                                    availableTransferManagers.length === 0 ? 'opacity-50 grayscale cursor-not-allowed' : ''
+                                 ]">
+                                <div class="w-12 h-12 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-blue-500">
+                                    <i class="pi pi-user-edit" />
+                                </div>
+                                <div class="flex-1">
+                                    <div class="font-bold text-slate-900">Remplacer et garder la chaîne</div>
+                                    <div class="text-xs text-slate-500">Le responsable part, mais un remplaçant prend sa place et récupère tous ses subordonnés.</div>
+                                    <div v-if="availableTransferManagers.length === 0" class="text-[10px] text-red-500 mt-1 font-bold">⚠ Aucun autre {{ selectedAssignment.position.code }} disponible pour le remplacement</div>
+                                </div>
+                            </div>
+
+                            <!-- Option 2: Libérer avec toute la chaîne -->
+                            <div @click="selectManageMode('release')" 
+                                 class="flex items-center gap-4 p-5 rounded-2xl border-2 border-slate-100 hover:border-red-200 hover:bg-red-50/30 transition-all cursor-pointer">
+                                <div class="w-12 h-12 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-red-500">
+                                    <i class="pi pi-users" />
+                                </div>
+                                <div class="flex-1">
+                                    <div class="font-bold text-slate-900">Libérer avec toute sa chaîne</div>
+                                    <div class="text-xs text-slate-500">
+                                        {{ selectedAssignment.position.code === 'TC' ? 'Retirer le téléconseiller de la campagne.' : 'Le responsable et TOUS ses subordonnés sont retirés de la campagne.' }}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Date d'effet -->
-                        <div>
-                            <label class="font-bold text-slate-900 block mb-1">Date de début *</label>
-                            <InputText type="date" v-model="reassignData.start_date" class="w-full rounded-xl border-slate-200" />
+                        <!-- ÉTAPE 2 : CONFIGURATION TRANSFERT -->
+                        <div v-if="manageStep === 'transfer'" class="flex flex-col gap-6">
+                            <div>
+                                <label class="font-bold text-slate-900 block mb-2">Choisir le remplaçant *</label>
+                                <Dropdown 
+                                    v-model="manageData.new_manager_id" 
+                                    :options="availableTransferManagers" 
+                                    optionLabel="employee.email" 
+                                    optionValue="employee_id" 
+                                    placeholder="Sélectionner le nouveau responsable..." 
+                                    class="w-full rounded-xl border-slate-200" 
+                                />
+                                <p class="text-[10px] text-slate-400 mt-2 italic">Les subordonnés de {{ selectedAssignment.employee.first_name }} lui seront automatiquement rattachés.</p>
+                            </div>
+
+                            <div>
+                                <label class="font-bold text-slate-900 block mb-1">Raison du transfert</label>
+                                <textarea v-model="manageData.reason" rows="3" placeholder="Ex: Remplacement congé, promotion..." class="w-full rounded-xl border border-slate-200 p-3" />
+                            </div>
                         </div>
 
-                        <!-- Raison -->
-                        <div>
-                            <label class="font-bold text-slate-900 block mb-1">Raison de la réaffectation</label>
-                            <textarea v-model="reassignData.reason" rows="3" placeholder="Motif de la réaffectation..." class="w-full rounded-xl border border-slate-200 p-3" />
+                        <!-- ÉTAPE 2 : CONFIGURATION LIBÉRATION -->
+                        <div v-if="manageStep === 'release'" class="flex flex-col gap-6">
+                            <div class="p-4 bg-red-50 rounded-2xl border border-red-100">
+                                <div class="flex gap-3 text-red-700">
+                                    <i class="pi pi-exclamation-triangle text-xl" />
+                                    <div>
+                                        <p class="font-bold">Attention : Règle Zéro Orphelin</p>
+                                        <p class="text-sm mt-1">
+                                            {{ selectedAssignment.position.code === 'TC' 
+                                                ? 'Cette action retirera définitivement ce téléconseiller de la campagne.' 
+                                                : 'La libération d\'un responsable entraînera la libération automatique de tous ses subordonnés pour garantir l\'intégrité de la hiérarchie.' }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="font-bold text-slate-900 block mb-1">Motif de la libération</label>
+                                <textarea v-model="manageData.reason" rows="3" placeholder="Précisez la raison..." class="w-full rounded-xl border border-slate-200 p-3" />
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <template #footer>
-                    <div class="px-8 pb-8 flex justify-end gap-3">
-                        <Button label="Annuler" severity="secondary" text @click="reassignDialog = false" class="rounded-xl px-6" />
-                        <Button label="Confirmer" icon="pi pi-check" @click="executeReassign" class="rounded-xl px-8 bg-blue-600 border-none shadow-lg shadow-blue-200" />
+                    <div class="px-8 pb-8 flex justify-between gap-3">
+                        <Button v-if="manageStep !== 'choice'" label="Retour" severity="secondary" text @click="manageStep = 'choice'" class="rounded-xl px-6" />
+                        <div v-else></div>
+                        
+                        <div class="flex gap-3">
+                            <Button label="Annuler" severity="secondary" text @click="manageDialog = false" class="rounded-xl px-6" />
+                            <Button 
+                                v-if="manageStep !== 'choice'"
+                                :label="manageStep === 'transfer' ? 'Confirmer le transfert' : 'Confirmer la libération'" 
+                                :severity="manageStep === 'transfer' ? 'info' : 'danger'"
+                                icon="pi pi-check" 
+                                @click="executeManage" 
+                                class="rounded-xl px-8 border-none shadow-lg"
+                                :class="manageStep === 'transfer' ? 'bg-blue-600 shadow-blue-200' : 'bg-red-600 shadow-red-200'"
+                            />
+                        </div>
                     </div>
                 </template>
             </Dialog>

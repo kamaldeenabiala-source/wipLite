@@ -19,9 +19,9 @@ class AssignmentHistory extends Model
     
     public function employee() { return $this->belongsTo(Employee::class); }
 
-    public function oldManager() { return $this->belongsTo(User::class, 'old_manager_id'); }
+    public function oldManager() { return $this->belongsTo(Employee::class, 'old_manager_id'); }
 
-    public function newManager() { return $this->belongsTo(User::class, 'new_manager_id'); }
+    public function newManager() { return $this->belongsTo(Employee::class, 'new_manager_id'); }
 
     public function oldCampaign() { return $this->belongsTo(Campaign::class, 'old_campaign_id'); }
 

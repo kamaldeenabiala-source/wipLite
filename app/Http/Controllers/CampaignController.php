@@ -165,25 +165,50 @@ class CampaignController extends Controller
     }
 
     /**
-     * Supprimer une campagne (En réalité, on la clôture/termine)
+     * Supprimer une campagne (En réalité, on la clôture/termine et libère toutes les ressources)
      */
     public function destroy(Request $request, Campaign $campaign)
     {
         // On garde l'ancien statut
         $oldStatus = $campaign->status;
 
-        // On ne supprime pas physiquement, on change le statut en 'terminee'
-        $campaign->update(['status' => 'terminee']);
+        // On utilise une transaction pour assurer la cohérence
+        \Illuminate\Support\Facades\DB::transaction(function () use ($campaign, $oldStatus, $request) {
+            // 1. Mettre à jour le statut de la campagne
+            $campaign->update(['status' => 'terminee']);
 
-        // Enregistrement de la clôture (via bouton supprimer) dans l'historique
-        ActivityLog::create([
-            'user_id' => Auth::id(),
-            'action' => 'cloture_campagne', // Action plus explicite
-            'model_type' => Campaign::class,
-            'model_id' => $campaign->id,
-            'description' => "Campagne clôturée : {$campaign->name}. Ancien statut: {$oldStatus}",
-            'ip_address' => $request->ip(),
-        ]);
+            // 2. Libérer TOUTES les affectations actives de cette campagne
+            $activeAssignments = \App\Models\Assignment::where('campaign_id', $campaign->id)
+                ->where('status', 'actif')
+                ->get();
+
+            foreach ($activeAssignments as $assignment) {
+                $assignment->update([
+                    'status' => 'termine',
+                    'end_date' => now()
+                ]);
+
+                \App\Models\AssignmentHistory::create([
+                    'assignment_id' => $assignment->id,
+                    'employee_id' => $assignment->employee_id,
+                    'old_manager_id' => $assignment->manager_id,
+                    'old_campaign_id' => $assignment->campaign_id,
+                    'action_type' => 'release',
+                    'changed_by' => Auth::id(),
+                    'reason' => "Libération automatique suite à la clôture de la campagne : {$campaign->name}",
+                ]);
+            }
+
+            // 3. Enregistrement de la clôture dans l'historique d'activité
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action' => 'cloture_campagne',
+                'model_type' => Campaign::class,
+                'model_id' => $campaign->id,
+                'description' => "Campagne clôturée : {$campaign->name}. Toutes les ressources ont été libérées.",
+                'ip_address' => $request->ip(),
+            ]);
+        });
 
         return redirect()->back();
     }

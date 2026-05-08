@@ -205,59 +205,92 @@ class AssignmentController extends Controller
     //     return redirect()->back();
     // }
 
-    public function release(Request $request, Assignment $assignment){
-        // je vais recuperer le mode choisi dans mon model
+    public function release(Request $request, Assignment $assignment)
+    {
         $mode = $request->mode;
+        $newManagerId = $request->new_manager_id;
 
-        DB::transaction(function() use ($assignment, $mode, $request){
-            // 1 - gerer les subordonnées
-            if($mode === 'transfer'){
-                // On donne les subordonnées à un nouveau manager
-                Assignment::where('manager_id', $assignment->employee_id)
+        DB::transaction(function() use ($assignment, $mode, $newManagerId, $request) {
+            // 1. Gérer les subordonnés
+            if ($mode === 'transfer' && $newManagerId) {
+                // On récupère les subordonnés pour tracer le transfert
+                $subordinates = Assignment::where('manager_id', $assignment->employee_id)
                     ->where('campaign_id', $assignment->campaign_id)
                     ->where('status', 'actif')
-                    ->update(['manager_id' => $request->new_manager_id]);
-            }
-            elseif($mode === 'cascade'){
-                // j'appelle une fonction qui va descendre toute la chaîne et libérer tout le monde
-                $this->libererEnCascade($assignment->employee_id, $assignment->campaign_id);
+                    ->get();
+
+                foreach ($subordinates as $sub) {
+                    $oldManager = $sub->manager_id;
+                    $sub->update(['manager_id' => $newManagerId]);
+
+                    // Historique pour chaque subordonné transféré
+                    AssignmentHistory::create([
+                        'assignment_id' => $sub->id,
+                        'employee_id' => $sub->employee_id,
+                        'old_manager_id' => $oldManager,
+                        'new_manager_id' => $newManagerId,
+                        'old_campaign_id' => $sub->campaign_id,
+                        'new_campaign_id' => $sub->campaign_id,
+                        'action_type' => 'transfer',
+                        'changed_by' => Auth::id(),
+                        'reason' => "Transfert automatique : chaîne reprise par un nouveau responsable",
+                    ]);
+                }
+            } elseif ($mode === 'cascade') {
+                $this->libererEnCascade($assignment->employee_id, $assignment->campaign_id, $request->reason ?? "Libération en cascade");
             }
 
-            // 2 - Liberer la personne concernée
+            // 2. Libérer la personne concernée
             $assignment->update([
                 'status' => 'termine',
                 'end_date' => now()
             ]);
 
-            // 3 - Enregistrer l'historique de cette libération
+            // 3. Enregistrer l'historique de cette libération
             AssignmentHistory::create([
                 'assignment_id' => $assignment->id,
                 'employee_id' => $assignment->employee_id,
+                'old_manager_id' => $assignment->manager_id,
+                'old_campaign_id' => $assignment->campaign_id,
                 'action_type' => 'release',
-                'reason' => $request->reason ?? "Libération en mode $mode",
                 'changed_by' => Auth::id(),
+                'reason' => $request->reason ?? "Libération effectuée (Mode: $mode)",
             ]);
         });
+
         return redirect()->back();
     }
 
     /**
- * Cette fonction est "récursive" : elle se répète tant qu'il y a des gens en dessous
- */
-private function libererEnCascade($managerId, $campaignId)
-{
-    // 1. Trouver les subordonnés directs
-    $subordonnes = Assignment::where('manager_id', $managerId)
-        ->where('campaign_id', $campaignId)
-        ->where('status', 'actif')
-        ->get();
+     * Libère récursivement tous les subordonnés d'un manager sur une campagne
+     */
+    private function libererEnCascade($managerId, $campaignId, $reason)
+    {
+        $subordonnes = Assignment::where('manager_id', $managerId)
+            ->where('campaign_id', $campaignId)
+            ->where('status', 'actif')
+            ->get();
 
-    foreach ($subordonnes as $sub) {
-        // 2. Les libérer
-        $sub->update(['status' => 'termine', 'end_date' => now()]);
+        foreach ($subordonnes as $sub) {
+            // Appel récursif
+            $this->libererEnCascade($sub->employee_id, $campaignId, $reason);
 
-        // 3. Chercher s'ils ont eux-mêmes des gens en dessous (ex: SUP vers TC)
-        $this->libererEnCascade($sub->employee_id, $campaignId);
+            // Libération du subordonné
+            $sub->update([
+                'status' => 'termine',
+                'end_date' => now()
+            ]);
+
+            // Historique pour chaque libération en cascade
+            AssignmentHistory::create([
+                'assignment_id' => $sub->id,
+                'employee_id' => $sub->employee_id,
+                'old_manager_id' => $sub->manager_id,
+                'old_campaign_id' => $sub->campaign_id,
+                'action_type' => 'release',
+                'changed_by' => Auth::id(),
+                'reason' => "Libération en cascade : $reason",
+            ]);
+        }
     }
-}
 }

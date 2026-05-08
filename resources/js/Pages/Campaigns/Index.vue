@@ -9,6 +9,7 @@ import Dialog from 'primevue/dialog';
 import Textarea from 'primevue/textarea';
 import Menu from 'primevue/menu';
 import SelectButton from 'primevue/selectbutton';
+import ToggleSwitch from 'primevue/toggleswitch';
 import { useToast } from 'primevue/usetoast';
 import { ref, computed } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
@@ -37,15 +38,20 @@ const menuItems = ref([]);
 const searchQuery = ref('');
 const statusFilter = ref('Tous');
 const statusOptions = ref(['Tous', 'Active', 'Inactive', 'Terminée']);
+const showClosed = ref(false);
 
 /**
- * Filtrage des campagnes selon la recherche et le statut
+ * Filtrage des campagnes selon la recherche, le statut et l'option d'affichage des clôturées
  */
 const filteredCampaigns = computed(() => {
     return props.campaigns.filter(c => {
         const matchesSearch = c.name.toLowerCase().includes(searchQuery.value.toLowerCase());
         const matchesStatus = statusFilter.value === 'Tous' || c.status.toLowerCase() === statusFilter.value.toLowerCase();
-        return matchesSearch && matchesStatus;
+        
+        const isClosed = c.status.toLowerCase() === 'terminee';
+        const hideClosed = !showClosed.value && isClosed && statusFilter.value !== 'Terminée';
+        
+        return matchesSearch && matchesStatus && !hideClosed;
     });
 });
 
@@ -197,6 +203,10 @@ const getStatusSeverity = (status) => {
             <div class="flex flex-wrap gap-4 items-center mb-6">
                 <div class="p-input-icon-left flex-1 min-w-[300px]">
                     <InputText v-model="searchQuery" placeholder="Rechercher une campagne..." class="w-full pl-10 rounded-xl border-slate-200" />
+                </div>
+                <div class="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-sm">
+                    <span class="text-sm font-medium text-slate-600">Afficher les clôturées</span>
+                    <ToggleSwitch v-model="showClosed" />
                 </div>
                 <SelectButton v-model="statusFilter" :options="statusOptions" class="custom-select-button" />
             </div>
