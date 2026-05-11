@@ -65,7 +65,57 @@ class PlanningAssignmentController extends Controller
                 ->where('status', 'actif')
                 ->pluck('employee_id');
 
-            $teleconseillerAssignments = $allAssignments->whereIn('employee_id', $teleconseillerIds);
+            // Toujours afficher l'équipe, mais ne montrer que les TC avec planning si le superviseur en a un
+            if ($supervisorAssignments->isNotEmpty()) {
+                // Le superviseur a un planning : afficher les TC qui ont des plannings
+                $teleconseillerAssignments = $allAssignments->whereIn('employee_id', $teleconseillerIds);
+            } else {
+                // Le superviseur n'a pas de planning : afficher l'équipe mais sans plannings
+                $teleconseillerAssignments = collect([]);
+                // On garde les IDs pour quand même afficher l'équipe dans la vue
+            }
+
+            // Récupérer tous les TC de l'équipe pour l'affichage
+            $allTeamMembers = Employee::with('user.role')
+                ->whereIn('id', $teleconseillerIds)
+                ->get()
+                ->map(fn($emp) => [
+                    'id' => $emp->id,
+                    'employee' => [
+                        'name' => $emp->user->name,
+                        'role' => $emp->user->role?->name ?? 'N/A',
+                    ],
+                    'has_planning' => $teleconseillerAssignments->where('employee_id', $emp->id)->isNotEmpty(),
+                ]);
+
+            // Combiner les TC avec planning et ceux sans planning
+            $teleconseillersWithPlanning = $teleconseillerAssignments->map(fn($a) => [
+                'id' => $a->id,
+                'employee' => [
+                    'name' => $a->employee?->user?->name ?? 'N/A',
+                    'role' => $a->employee?->user?->role?->name ?? 'N/A',
+                ],
+                'model' => ['name' => $a->planningModel?->name ?? 'N/A'],
+                'start_date' => $a->start_date ? $a->start_date->format('d/m/Y') : 'N/A',
+                'end_date' => $a->end_date ? $a->end_date->format('d/m/Y') : 'N/A',
+                'status' => $a->status,
+                'has_planning' => true,
+            ]);
+
+            // Ajouter les TC sans planning
+            $teleconseillersWithoutPlanning = $allTeamMembers
+                ->filter(fn($member) => !$member['has_planning'])
+                ->map(fn($member) => [
+                    'id' => null,
+                    'employee' => $member['employee'],
+                    'model' => ['name' => 'Aucun planning'],
+                    'start_date' => 'N/A',
+                    'end_date' => 'N/A',
+                    'status' => 'non assigné',
+                    'has_planning' => false,
+                ]);
+
+            $allTeleconseillers = $teleconseillersWithPlanning->merge($teleconseillersWithoutPlanning);
 
             return [
                 'supervisor' => [
@@ -81,17 +131,7 @@ class PlanningAssignmentController extends Controller
                     'end_date' => $a->end_date ? $a->end_date->format('d/m/Y') : 'N/A',
                     'status' => $a->status,
                 ]),
-                'teleconseillers' => $teleconseillerAssignments->map(fn($a) => [
-                    'id' => $a->id,
-                    'employee' => [
-                        'name' => $a->employee?->user?->name ?? 'N/A',
-                        'role' => $a->employee?->user?->role?->name ?? 'N/A',
-                    ],
-                    'model' => ['name' => $a->planningModel?->name ?? 'N/A'],
-                    'start_date' => $a->start_date ? $a->start_date->format('d/m/Y') : 'N/A',
-                    'end_date' => $a->end_date ? $a->end_date->format('d/m/Y') : 'N/A',
-                    'status' => $a->status,
-                ]),
+                'teleconseillers' => $allTeleconseillers,
             ];
         });
 
@@ -127,6 +167,7 @@ class PlanningAssignmentController extends Controller
      * Gère la création d'une nouvelle affectation.
      * Lorsqu'un modèle est affecté à un superviseur, il est automatiquement
      * propagé à tous les agents de son équipe active.
+     * Les TC ne peuvent avoir un planning que si leur superviseur en a un.
      */
     public function store(Request $request)
     {
@@ -138,6 +179,18 @@ class PlanningAssignmentController extends Controller
         ]);
 
         $supervisor = Employee::findOrFail($request->supervisor_id);
+
+        // Vérifier que le superviseur n'a pas déjà un planning sur cette période
+        $existingSupervisorPlanning = PlanningAssignment::where('employee_id', $supervisor->id)
+            ->where(function ($query) use ($request) {
+                $query->whereBetween('start_date', [$request->start_date, $request->end_date])
+                      ->orWhereBetween('end_date', [$request->start_date, $request->end_date]);
+            })
+            ->exists();
+
+        if ($existingSupervisorPlanning) {
+            return back()->withErrors(['supervisor_id' => 'Ce superviseur a déjà un planning sur cette période.']);
+        }
 
         // Identification automatique des agents sous la responsabilité du superviseur
         $teleconseillerIds = Assignment::where('manager_id', $supervisor->id)
@@ -172,7 +225,9 @@ class PlanningAssignmentController extends Controller
                     'old_status' => '',
                     'new_status' => 'en attente',
                     'changed_by' => Auth::id(),
-                    'reason' => 'Création de l\'affectation',
+                    'reason' => $employee->id === $supervisor->id 
+                        ? 'Création de l\'affectation superviseur' 
+                        : 'Héritage automatique du planning superviseur',
                 ]);
             }
         }
