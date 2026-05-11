@@ -103,10 +103,6 @@ watch(() => page.url, findActiveMenu);
 
         { label: 'Liste des employés',     href: '/employees' },
 
-        { label: 'Employés affectés',     href: '/employees/assigned' },
-
-        { label: 'Employés non affectés',  href: '/employees/unassigned' },
-
         { label: 'Historique des employés',href: '/employees/history' },
 
       ],

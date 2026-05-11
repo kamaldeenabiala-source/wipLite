@@ -1,4 +1,8 @@
 <script setup>
+/**
+ * Vue "Planning de l'Équipe"
+ * Réservée aux Superviseurs pour suivre les plannings des agents qu'ils encadrent.
+ */
 import { Head } from "@inertiajs/vue3";
 import AppLayout from "@/Layouts/AppLayout.vue";
 import Tag from "primevue/tag";
@@ -6,8 +10,9 @@ import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 import { Clock, Calendar, Users, AlertCircle } from "lucide-vue-next";
 
+// Propriétés reçues du contrôleur
 const props = defineProps({
-    assignments: Array,
+    assignments: Array, // Liste des plannings des agents de l'équipe
 });
 
 const getStatusLabel = (status) => {

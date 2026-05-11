@@ -14,12 +14,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AssignmentController;
 use App\Http\Controllers\CampaignController;
-// use App\Http\Controllers\TimesheetController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\TimesheetController as ControllersTimesheetController;
-// use App\Http\Controllers\AssignmentController; // Importation du contrôleur d'affectations
-// use App\Http\Controllers\PlanningAssignmentController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -42,7 +37,7 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    // Route /dashboard redirige aussi selon le rôle (évite le bug TeleConseiller pour CP)
+    // Route /dashboard redirige aussi selon le rôle
     Route::get('/dashboard', function () {
         $role = auth()->user()->role?->name;
 
@@ -60,46 +55,42 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/reports/export/pdf', [ReportingController::class, 'exportPdf'])->name('reports.export.pdf');
 
     Route::get('/dashboard/cp', [ReportingController::class, 'chefPlateau'])->middleware('role:cp,admin')->name('dashboard.cp');
-
     Route::get('/dashboard/sup', [ReportingController::class, 'superviseur'])->middleware('role:sup,admin')->name('dashboard.sup');
-
     Route::get('/dashboard/tc', [ReportingController::class, 'teleConseiller'])->middleware('role:tc,admin')->name('dashboard.tc');
 
+    Route::get('/users/roles', [RoleController::class, 'index'])->name('roles.index');
 
-    Route::get('/users/roles', [RoleController::class, 'index'])
-        ->name('roles.index');
-
-    // --- GESTION DES PLANNINGS ---
+    // --- GESTION DES PLANNINGS (ADMIN & CP) ---
     Route::middleware('role:cp,admin')->prefix('planning')->name('planning.')->group(function () {
-        // Modèles
+        // Modèles : définition des types de plannings (ex: 40h/semaine, shifts)
         Route::get('/models', [PlanningModelsController::class, 'index'])->name('models.index');
         Route::post('/models', [PlanningModelsController::class, 'store'])->name('models.store');
         Route::put('/models/{model}', [PlanningModelsController::class, 'update'])->name('models.update');
         Route::delete('/models/{model}', [PlanningModelsController::class, 'destroy'])->name('models.destroy');
 
-        // Affectations
+        // Affectations : liaison entre un employé et un modèle sur une période donnée
         Route::get('/assignments', [PlanningAssignmentController::class, 'index'])->name('assignments.index');
         Route::get('/assignments/create', [PlanningAssignmentController::class, 'create'])->name('assignments.create');
         Route::post('/assignments', [PlanningAssignmentController::class, 'store'])->name('assignments.store');
         Route::delete('/assignments/{id}', [PlanningAssignmentController::class, 'destroy'])->name('assignments.destroy');
 
-        // Actions
+        // Actions de workflow : validation, suspension et terminaison
         Route::post('/assignments/{id}/validate', [PlanningAssignmentController::class, 'validateAssignment'])->name('assignments.validate');
         Route::post('/assignments/bulk-validate', [PlanningAssignmentController::class, 'bulkValidate'])->name('assignments.bulk-validate');
         Route::post('/assignments/validate-all', [PlanningAssignmentController::class, 'validateAll'])->name('assignments.validate-all');
         Route::post('/assignments/{id}/suspend', [PlanningAssignmentController::class, 'suspendAssignment'])->name('assignments.suspend');
         Route::post('/assignments/{id}/terminate', [PlanningAssignmentController::class, 'terminateAssignment'])->name('assignments.terminate');
 
-        // Pages
+        // Vue dédiée à la validation des plannings en attente
         Route::get('/validate', [PlanningAssignmentController::class, 'validation'])->name('validate');
     });
 
-    // Routes planning accessibles par tous les rôles (mais filtrées dans le contrôleur)
+    // Routes planning pour tous les rôles (TC voit le sien, SUP voit son équipe)
     Route::get('/planning/history', [PlanningAssignmentController::class, 'history'])->name('planning.history');
     Route::get('/planning/mine', [PlanningAssignmentController::class, 'mine'])->name('planning.mine');
     Route::get('/planning/team', [PlanningAssignmentController::class, 'team'])->name('planning.team');
 
-    // Routes pour la gestion des affectations
+    // --- GESTION DES AFFECTATIONS ---
     Route::prefix('assignments')->name('assignments.')->group(function () {
         Route::get('/', [AssignmentController::class, 'index'])->name('index');
         Route::post('/', [AssignmentController::class, 'store'])->name('store');
@@ -109,140 +100,76 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/hierarchy', [AssignmentController::class, 'hierarchy'])->name('hierarchy');
         Route::get('/reassign', [AssignmentController::class, 'index'])->name('reassign');
         Route::get('/history', [AssignmentController::class, 'history'])->name('history');
-        Route::get('/tree', [AssignmentController::class, 'hierarchy'])->name('tree'); // Réutilisation de hierarchy pour tree
+        Route::get('/tree', [AssignmentController::class, 'hierarchy'])->name('tree');
         Route::post('/{assignment}/release', [AssignmentController::class, 'release'])->name('release');
         Route::post('/{assignment}/reassign', [AssignmentController::class, 'reassign'])->name('reassign');
     });
 
+    // --- PROFIL ---
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::get('/profile/password', [ProfileController::class, 'edit'])->name('profile.password');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    Route::resource('/employees', EmployeeController::class);
+    // --- EMPLOYÉS ---
     Route::prefix('employees')->name('employees.')->group(function () {
         Route::get('/assigned', [EmployeeController::class, 'index'])->name('assigned');
         Route::get('/inactifs', [EmployeeController::class, 'index'])->name('inactifs');
         Route::get('/unassigned', [EmployeeController::class, 'index'])->name('unassigned');
+        Route::get('/history', [EmployeeController::class, 'history'])->name('history');
     });
+    Route::resource('/employees', EmployeeController::class);
 
-    Route::resource('/campaigns', CampaignController::class);
+    // --- CAMPAGNES ---
     Route::prefix('campaigns')->name('campaigns.')->group(function () {
         Route::get('/active', [CampaignController::class, 'index'])->name('active');
         Route::get('/closed', [CampaignController::class, 'index'])->name('closed');
         Route::get('/details', [CampaignController::class, 'index'])->name('details');
         Route::patch('/{campaign}/status', [CampaignController::class, 'changeStatus'])->name('status.update');
     });
+    Route::resource('/campaigns', CampaignController::class);
 
+    // --- FEUILLES DE TEMPS ---
     Route::get('/timesheets', [TimesheetController::class, 'index'])->name('calendar.index');
     Route::prefix('timesheets')->name('timesheets.')->group(function () {
-        Route::get('/validate', [TimesheetController::class, 'index'])->name('validate'); // Réutilisation de index pour l'instant
+        Route::get('/validate', [TimesheetController::class, 'index'])->name('validate');
         Route::get('/history', [TimesheetController::class, 'index'])->name('history');
         Route::get('/gaps', [TimesheetController::class, 'index'])->name('gaps');
         Route::get('/overtime', [TimesheetController::class, 'index'])->name('overtime');
         Route::get('/{timesheet}', [TimesheetController::class, 'show'])->name('show');
         Route::post('/{timesheet}/submit', [TimesheetController::class, 'submit'])->name('submit');
     });
-
-    // Routes Rapports
-     Route::prefix('reports')->name('reports.')->group(function () {
-         Route::get('/hr', [ReportingController::class, 'hrReport'])->name('hr');
-         Route::get('/campaigns', [ReportingController::class, 'campaignsReport'])->name('campaigns');
-         Route::get('/assignments', [ReportingController::class, 'assignmentsReport'])->name('assignments');
-         Route::get('/timesheets', [ReportingController::class, 'timesheetsReport'])->name('timesheets');
-         Route::get('/team', [ReportingController::class, 'teamReport'])->name('team');
-         Route::get('/productivity', [ReportingController::class, 'productivityReport'])->name('productivity');
-     });
-
-    Route::resource('/notifications', NotificationController::class);
-
-    // Routes spécifiques pour les rôles (Superviseurs et Téléconseillers)
-    Route::get('/supervisors', [EmployeeController::class, 'index'])->name('supervisors.index');
-    Route::get('/teleconseillers', [EmployeeController::class, 'index'])->name('teleconseillers.index');
-
-    Route::resource('/positions', PositionController::class)->only(['index', 'show']);
-    Route::get('/employees/{employee}/history', [EmployeeController::class, 'history'])->name('employees.history');
     Route::post('/timesheet-entries', [TimesheetEntryController::class, 'store'])->name('timesheet-entries.store');
 
-    Route::get('/employees/history',    [EmployeeController::class, 'history'])->name('employees.history');//r
-    Route::resource('/employees', EmployeeController::class);//r
-    Route::resource('/positions', PositionController::class)->only(['index', 'show']);//r
-
-    Route::middleware(['role:admin'])->group(function () {
-
-        // USERS
-        Route::resource('users', UserController::class);
-
-        // ROLES & PERMISSIONS
-
-        Route::post('/users/roles', [RoleController::class, 'store'])
-            ->name('roles.store');
-
-        Route::put('/users/roles/{role}', [RoleController::class, 'update'])
-            ->name('roles.update');
-
-        Route::delete('/users/roles/{role}', [RoleController::class, 'destroy'])
-            ->name('roles.destroy');
-
-        // ACTIVITY LOGS
-        Route::get('/activity-logs', [ActivityLogController::class, 'index'])
-            ->name('activity-logs.index');
-
-        // // SETTINGS
-        // Route::get('/settings', [SettingController::class, 'index'])
-        //     ->name('settings.index');
-
-        // Route::put('/settings', [SettingController::class, 'update'])
-        //     ->name('settings.update');
+    // --- RAPPORTS ---
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/hr', [ReportingController::class, 'hrReport'])->name('hr');
+        Route::get('/campaigns', [ReportingController::class, 'campaignsReport'])->name('campaigns');
+        Route::get('/assignments', [ReportingController::class, 'assignmentsReport'])->name('assignments');
+        Route::get('/timesheets', [ReportingController::class, 'timesheetsReport'])->name('timesheets');
+        Route::get('/team', [ReportingController::class, 'teamReport'])->name('team');
+        Route::get('/productivity', [ReportingController::class, 'productivityReport'])->name('productivity');
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | DASHBOARDS
-    |--------------------------------------------------------------------------
-    */
+    // --- NOTIFICATIONS ---
+    Route::resource('/notifications', NotificationController::class);
 
+    // --- AUTRES ROUTES ---
+    Route::get('/supervisors', [EmployeeController::class, 'index'])->name('supervisors.index');
+    Route::get('/teleconseillers', [EmployeeController::class, 'index'])->name('teleconseillers.index');
+    Route::resource('/positions', PositionController::class)->only(['index', 'show']);
 
-    Route::get('/dashboard/admin/stats', [ReportingController::class, 'generalStats'])
-        ->middleware('role:admin')
-        ->name('dashboard.admin.stats');
+    // --- ADMIN SEULEMENT ---
+    Route::middleware(['role:admin'])->group(function () {
+        Route::resource('users', UserController::class);
+        Route::post('/users/roles', [RoleController::class, 'store'])->name('roles.store');
+        Route::put('/users/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+        Route::delete('/users/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
+        Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
 
-    Route::get('/dashboard/admin/alerts', [ReportingController::class, 'alerts'])
-        ->middleware('role:admin')
-        ->name('dashboard.admin.alerts');
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | REPORTS
-    |--------------------------------------------------------------------------
-    */
-
-    Route::prefix('reports')->middleware('role:admin,cp,sup')->group(function () {
-
-        Route::get('/hr', [ReportingController::class, 'hr']);
-
-        Route::get('/campaigns', [ReportingController::class, 'campaigns']);
-
-        Route::get('/assignments', [ReportingController::class, 'assignments']);
-
-        Route::get('/timesheets', [ReportingController::class, 'timesheets']);
-
-        Route::get('/analytics', [ReportingController::class, 'analytics']);
-
-        Route::get('/kpis', [ReportingController::class, 'kpis']);
-
-        Route::get('/team', [ReportingController::class, 'team']);
-
-        Route::get('/productivity', [ReportingController::class, 'productivity']);
-
-        Route::get('/export/pdf', [ReportingController::class, 'exportPdf']);
-
-        Route::get('/export/excel', [ReportingController::class, 'exportExcel']);
+        Route::get('/dashboard/admin/stats', [ReportingController::class, 'generalStats'])->name('dashboard.admin.stats');
+        Route::get('/dashboard/admin/alerts', [ReportingController::class, 'alerts'])->name('dashboard.admin.alerts');
     });
 });
-Route::post('/timesheet-entries', [TimesheetEntryController::class, 'store']);
-Route::post('/timesheets/{timesheet}/submit', [TimesheetController::class, 'submit'])->name('timesheets.submit');
-
 
 require __DIR__ . '/auth.php';

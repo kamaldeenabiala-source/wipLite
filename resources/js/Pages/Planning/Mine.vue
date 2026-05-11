@@ -1,11 +1,16 @@
 <script setup>
+/**
+ * Vue "Mon Planning"
+ * Permet à l'utilisateur connecté (Agent ou Superviseur) de consulter ses propres affectations de planning.
+ */
 import { Head } from "@inertiajs/vue3";
 import AppLayout from "@/Layouts/AppLayout.vue";
 import Tag from "primevue/tag";
 import { Clock, Calendar, CheckCircle, AlertCircle, User } from "lucide-vue-next";
 
+// Propriétés reçues du contrôleur
 const props = defineProps({
-    assignments: Array,
+    assignments: Array, // Liste des affectations de l'utilisateur
 });
 
 const getStatusLabel = (status) => {

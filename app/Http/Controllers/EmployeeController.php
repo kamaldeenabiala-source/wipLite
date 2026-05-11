@@ -19,9 +19,9 @@ class EmployeeController extends Controller
     {
         $query = Employee::with('position', 'user');
 
-        // Filtrage selon la route ou les paramètres
+        // Filtrage selon la route
         $routeName = $request->route()->getName();
-        
+
         if ($routeName === 'employees.assigned') {
             $query->whereHas('assignments', fn($q) => $q->where('status', 'actif'));
         } elseif ($routeName === 'employees.unassigned') {
@@ -30,18 +30,35 @@ class EmployeeController extends Controller
             $query->where('status', 'inactif');
         }
 
+        // Recherche globale
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('matricule', 'like', "%{$search}%");
+            });
+        }
+
         // Filtre manuel par statut si présent
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
-        // On récupère les employés
-        $employees = $query->orderBy('last_name', 'asc')->get();
+        // Tri et Pagination
+        $sortField = $request->input('sort_field', 'last_name');
+        $sortOrder = $request->input('sort_order', 'asc');
+        $perPage = $request->input('per_page', 10);
+
+        $employees = $query->orderBy($sortField, $sortOrder)
+            ->paginate($perPage)
+            ->withQueryString();
 
         return Inertia::render('Employees/Index', [
             'employees' => $employees,
             'positions' => Position::all(),
-            'filters'   => $request->only('status', 'position_id'),
+            'filters'   => $request->only('search', 'status', 'position_id'),
             'currentView' => $routeName
         ]);
     }
