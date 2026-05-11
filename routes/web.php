@@ -65,7 +65,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/dashboard/tc', [ReportingController::class, 'teleConseiller'])->middleware('role:tc,admin')->name('dashboard.tc');
 
-    
+
     Route::get('/users/roles', [RoleController::class, 'index'])
         ->name('roles.index');
 
