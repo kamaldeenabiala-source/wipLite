@@ -9,6 +9,7 @@ import Dialog from 'primevue/dialog';
 import Textarea from 'primevue/textarea';
 import Menu from 'primevue/menu';
 import SelectButton from 'primevue/selectbutton';
+import ToggleSwitch from 'primevue/toggleswitch';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
 import Select from 'primevue/select';
@@ -36,7 +37,9 @@ const dt = ref();
 
 // États pour les modaux
 const campaignDialog = ref(false);
-const campaign = ref({ status: 'active' });
+const deleteDialog = ref(false);
+const selectedCampaign = ref(null);
+const campaign = ref({ status: 'inactive' });
 const submitted = ref(false);
 
 // Menu contextuel
@@ -46,9 +49,10 @@ const menuItems = ref([]);
 // Filtres
 const statusFilter = ref('Tous');
 const statusOptions = ref(['Tous', 'Active', 'Inactive', 'Terminée']);
+const showClosed = ref(false);
 
 /**
- * Filtrage des campagnes selon la recherche et le statut
+ * Filtrage des campagnes selon la recherche, le statut et l'option d'affichage des clôturées
  */
 const filteredCampaigns = computed(() => {
     return props.campaigns.filter(c => {
@@ -80,14 +84,14 @@ const toggleMenu = (event, data) => {
         });
     }
 
-    // Bouton de clôture (anciennement supprimer)
+    // Bouton de clôture (si non terminée)
     items.push({ separator: true });
     if (data.status !== 'terminee') {
         items.push({ 
             label: 'Clôturer', 
             icon: 'pi pi-times-circle', 
             class: 'text-red-500', 
-            command: () => confirmDelete(data) 
+            command: () => confirmClose(data) 
         });
     }
 
@@ -122,9 +126,9 @@ const onRowClick = (event) => {
     router.get(`/campaigns/${event.data.id}`);
 };
 
-// Fonctions CRUD basiques
+// Fonctions CRUD 
 const openNew = () => {
-    campaign.value = { status: 'active' };
+    campaign.value = { status: 'inactive' };
     submitted.value = false;
     campaignDialog.value = true;
 };

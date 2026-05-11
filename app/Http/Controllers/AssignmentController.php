@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Assignment;
 use App\Models\AssignmentHistory;
-use App\Models\Employee;
 use App\Models\Campaign;
+use App\Models\Employee;
 use App\Models\Position;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+
 use Inertia\Inertia;
 
 class AssignmentController extends Controller
@@ -96,9 +98,11 @@ class AssignmentController extends Controller
     }
 
     /**
-     * Enregistre une nouvelle affectation et crée une trace dans l'historique
+     * =========================================================
+     * PAGE D'AFFECTATION DES SUPERVISEURS
+     * =========================================================
      */
-    public function store(Request $request)
+    public function assignSUP()
     {
         $validated = $request->validate([
             'employee_id' => [
@@ -142,10 +146,13 @@ class AssignmentController extends Controller
         return redirect()->back()->with('success', 'Affectation créée avec succès.');
     }
 
+
     /**
-     * Gère la réaffectation (changement de manager) d'une ressource
+     * =========================================================
+     * AFFECTER UN CP À UNE CAMPAGNE
+     * =========================================================
      */
-    public function reassign(Request $request, Assignment $assignment)
+    public function storeCP(Request $request)
     {
         $validated = $request->validate([
             'manager_id' => 'required|exists:employees,id',
@@ -162,6 +169,10 @@ class AssignmentController extends Controller
             ]);
 
             AssignmentHistory::create([
+
+                /**
+                 * Affectation liée
+                 */
                 'assignment_id' => $assignment->id,
                 'employee_id' => $assignment->employee_id,
                 'old_manager_id' => $oldManagerId,
@@ -177,8 +188,19 @@ class AssignmentController extends Controller
         return redirect()->back()->with('success', 'Réaffectation effectuée.');
     }
 
+
     /**
-     * Gère la libération ou le transfert d'une ressource (CP, SUP ou TC)
+     * =========================================================
+     * AFFECTER UN CP À UNE AUTRE CAMPAGNE
+     * =========================================================
+     *
+     * Cette méthode permet :
+     * - de prendre un CP déjà affecté
+     * - et de lui attribuer une nouvelle campagne
+     *
+     * IMPORTANT :
+     * - un CP peut avoir plusieurs campagnes
+     * - une campagne ne peut avoir qu'un seul CP actif
      */
     public function release(Request $request, Assignment $assignment)
     {
@@ -219,7 +241,9 @@ class AssignmentController extends Controller
             ]);
 
             AssignmentHistory::create([
-                'assignment_id' => $assignment->id,
+
+                'assignment_id' => $newAssignment->id,
+
                 'employee_id' => $assignment->employee_id,
                 'old_manager_id' => $assignment->manager_id,
                 'old_campaign_id' => $assignment->campaign_id,
@@ -231,6 +255,7 @@ class AssignmentController extends Controller
 
         return redirect()->back()->with('success', 'Ressource libérée avec succès.');
     }
+
 
     /**
      * Libération récursive pour le mode cascade
