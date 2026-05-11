@@ -129,9 +129,9 @@ watch(() => page.url, findActiveMenu);
 
         { label: 'Affectation TC → SUP',      href: '/assign/tc' },
 
-        { label: 'Vue hiérarchique',          href: '/assignments/hierarchy' },
+        // { label: 'Vue hiérarchique',          href: '/assignments/hierarchy' },
 
-        { label: 'Réaffectations',            href: '/assignments/reassign' },
+        // { label: 'Réaffectations',            href: '/assignments/reassign' },
 
         { label: 'Historique des affectations',href: '/assignments/history' },
 
