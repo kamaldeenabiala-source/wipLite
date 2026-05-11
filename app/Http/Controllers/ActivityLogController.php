@@ -3,64 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
-use App\Http\Requests\StoreActivityLogRequest;
-use App\Http\Requests\UpdateActivityLogRequest;
+use Inertia\Inertia;
 
 class ActivityLogController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        //
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(StoreActivityLogRequest $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(ActivityLog $activityLog)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(ActivityLog $activityLog)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(UpdateActivityLogRequest $request, ActivityLog $activityLog)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(ActivityLog $activityLog)
-    {
-        //
+        // On récupère les 100 derniers logs pour le filtrage automatique côté client (PrimeVue)
+        // comme demandé par l'utilisateur pour éviter les requêtes à chaque caractère.
+        return Inertia::render('ActivityLogs/Index', [
+            'logs' => ActivityLog::with('user')
+                ->latest()
+                ->take(100)
+                ->get()
+        ]);
     }
 }
