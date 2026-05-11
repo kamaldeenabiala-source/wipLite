@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import { Link, usePage, Head } from '@inertiajs/vue3';
+import { Link, usePage, Head, router } from '@inertiajs/vue3';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
@@ -34,7 +34,7 @@ const findActiveMenu = () => {
   const currentPath = page.url.split('?')[0];
   const role = page.props.auth?.role;
   const config = menuConfig[role] ?? menuConfig.tc;
-  
+
   // Chercher d'abord une correspondance exacte dans les sous-menus
   for (const [menuId, subMenus] of Object.entries(config.sub)) {
     if (subMenus.some(sub => sub.href === currentPath)) {
@@ -103,10 +103,6 @@ watch(() => page.url, findActiveMenu);
 
         { label: 'Liste des employés',     href: '/employees' },
 
-        { label: 'Employés affectés',     href: '/employees/assigned' },
-
-        { label: 'Employés non affectés',  href: '/employees/unassigned' },
-
         { label: 'Historique des employés',href: '/employees/history' },
 
       ],
@@ -115,25 +111,23 @@ watch(() => page.url, findActiveMenu);
 
         { label: 'Liste des campagnes',    href: '/campaigns' },
 
-        { label: 'Créer une campagne',     href: '/campaigns/create' },
+        { label: 'Campagnes actives',      href: '/active/campaigns' },
 
-        { label: 'Campagnes actives',      href: '/campaigns/active' },
-
-        { label: 'Campagnes terminées',    href: '/campaigns/closed' },
+        { label: 'Campagnes inactives',    href: '/inactive/campaigns' },
 
       ],
 
       assignments: [
 
-        { label: 'Affectation CP → Campagne', href: '/assignments/cp' },
+        { label: 'Affectation CP → Campagne', href: '/assign/cp' },
 
-        { label: 'Affectation SUP → CP',      href: '/assignments/sup' },
+        { label: 'Affectation SUP → CP',      href: '/assign/sup' },
 
-        { label: 'Affectation TC → SUP',      href: '/assignments/tc' },
+        { label: 'Affectation TC → SUP',      href: '/assign/tc' },
 
-        { label: 'Vue hiérarchique',          href: '/assignments/hierarchy' },
+        // { label: 'Vue hiérarchique',          href: '/assignments/hierarchy' },
 
-        { label: 'Réaffectations',            href: '/assignments/reassign' },
+        // { label: 'Réaffectations',            href: '/assignments/reassign' },
 
         { label: 'Historique des affectations',href: '/assignments/history' },
 
@@ -276,9 +270,7 @@ watch(() => page.url, findActiveMenu);
 
         { label: 'Modèles de planning',      href: '/planning/models' },
 
-        { label: 'Créer un modèle',          href: '/planning/create' },
-
-        { label: 'Affecter un planning',     href: '/planning/assignments' },
+        { label: 'Affectations des plannings', href: '/planning/assignments' },
 
         { label: 'Validation des plannings', href: '/planning/validate' },
 
