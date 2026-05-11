@@ -258,7 +258,6 @@ const confirmDelete = (employee) => {
     });
 };
 
-
 // ---------------------------------------------------------
 // TOGGLE STATUT (Désactiver / Réactiver)
 // ---------------------------------------------------------
@@ -299,7 +298,6 @@ const toggleStatus = (employee) => {
         confirmDelete(employee);
     }
 };
-
 
 </script>
 
@@ -421,7 +419,7 @@ const toggleStatus = (employee) => {
                             class="mr-2"
                             @click="openEdit(data)"
                         />
-                        <Button 
+                         <Button 
                             :icon="data.status === 'inactif' ? 'pi pi-refresh' : 'pi pi-ban'" 
                             :severity="data.status === 'inactif' ? 'success' : 'danger'"
                             variant="outlined" 

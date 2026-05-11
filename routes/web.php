@@ -120,12 +120,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     // Route pour enregistrer ou mettre à jour une entrée de temps
     
-    Route::resource('/employees', EmployeeController::class);
     Route::prefix('employees')->name('employees.')->group(function () {
+        Route::get('/history', [EmployeeController::class, 'history'])->name('history');
         Route::get('/assigned', [EmployeeController::class, 'index'])->name('assigned');
-        Route::get('/inactifs', [EmployeeController::class, 'index'])->name('inactifs');
         Route::get('/unassigned', [EmployeeController::class, 'index'])->name('unassigned');
+        Route::get('/inactifs', [EmployeeController::class, 'index'])->name('inactifs');
     });
+    Route::resource('employees', EmployeeController::class);
+ 
 
     Route::resource('/campaigns', CampaignController::class);
     Route::prefix('campaigns')->name('campaigns.')->group(function () {
