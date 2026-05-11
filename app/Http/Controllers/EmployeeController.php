@@ -19,14 +19,30 @@ class EmployeeController extends Controller
     {
         $query = Employee::with('position', 'user');
 
-        // On récupère TOUS les employés pour le filtrage automatique côté client (PrimeVue)
-        // comme demandé par l'utilisateur pour éviter les requêtes à chaque caractère.
+        // Filtrage selon la route ou les paramètres
+        $routeName = $request->route()->getName();
+        
+        if ($routeName === 'employees.assigned') {
+            $query->whereHas('assignments', fn($q) => $q->where('status', 'actif'));
+        } elseif ($routeName === 'employees.unassigned') {
+            $query->whereDoesntHave('assignments', fn($q) => $q->where('status', 'actif'));
+        } elseif ($routeName === 'employees.inactifs') {
+            $query->where('status', 'inactif');
+        }
+
+        // Filtre manuel par statut si présent
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // On récupère les employés
         $employees = $query->orderBy('last_name', 'asc')->get();
 
         return Inertia::render('Employees/Index', [
             'employees' => $employees,
             'positions' => Position::all(),
             'filters'   => $request->only('status', 'position_id'),
+            'currentView' => $routeName
         ]);
     }
 

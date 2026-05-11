@@ -65,7 +65,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/dashboard/tc', [ReportingController::class, 'teleConseiller'])->middleware('role:tc,admin')->name('dashboard.tc');
 
-    
+
     Route::get('/users/roles', [RoleController::class, 'index'])
         ->name('roles.index');
 
@@ -92,12 +92,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Pages
         Route::get('/validate', [PlanningAssignmentController::class, 'validation'])->name('validate');
-        Route::get('/history', [PlanningAssignmentController::class, 'history'])->name('history');
     });
 
-    // Routes planning pour tous les rôles (ou TC/SUP)
-    Route::get('planning/mine', [PlanningAssignmentController::class, 'index'])->name('planning.mine');
-    Route::get('planning/team', [PlanningAssignmentController::class, 'index'])->name('planning.team');
+    // Routes planning accessibles par tous les rôles (mais filtrées dans le contrôleur)
+    Route::get('/planning/history', [PlanningAssignmentController::class, 'history'])->name('planning.history');
+    Route::get('/planning/mine', [PlanningAssignmentController::class, 'mine'])->name('planning.mine');
+    Route::get('/planning/team', [PlanningAssignmentController::class, 'team'])->name('planning.team');
 
     // Routes pour la gestion des affectations
     Route::prefix('assignments')->name('assignments.')->group(function () {
@@ -109,7 +109,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/hierarchy', [AssignmentController::class, 'hierarchy'])->name('hierarchy');
         Route::get('/reassign', [AssignmentController::class, 'index'])->name('reassign');
         Route::get('/history', [AssignmentController::class, 'history'])->name('history');
-        Route::get('/tree', [AssignmentController::class, 'index'])->name('tree');
+        Route::get('/tree', [AssignmentController::class, 'hierarchy'])->name('tree'); // Réutilisation de hierarchy pour tree
         Route::post('/{assignment}/release', [AssignmentController::class, 'release'])->name('release');
         Route::post('/{assignment}/reassign', [AssignmentController::class, 'reassign'])->name('reassign');
     });
@@ -118,8 +118,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/profile/password', [ProfileController::class, 'edit'])->name('profile.password');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    // Route pour enregistrer ou mettre à jour une entrée de temps
-    
+
     Route::resource('/employees', EmployeeController::class);
     Route::prefix('employees')->name('employees.')->group(function () {
         Route::get('/assigned', [EmployeeController::class, 'index'])->name('assigned');
@@ -132,21 +131,28 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/active', [CampaignController::class, 'index'])->name('active');
         Route::get('/closed', [CampaignController::class, 'index'])->name('closed');
         Route::get('/details', [CampaignController::class, 'index'])->name('details');
+        Route::patch('/{campaign}/status', [CampaignController::class, 'changeStatus'])->name('status.update');
     });
-    
+
     Route::get('/timesheets', [TimesheetController::class, 'index'])->name('calendar.index');
-    // Route::prefix('timesheets')->name('timesheets.')->group(function () {
-    //     Route::get('/entry', [TimesheetController::class, 'entry'])->name('entry');
-    //     Route::get('/validate', [TimesheetController::class, 'validation'])->name('validate');
-    //     Route::get('/history', [TimesheetController::class, 'history'])->name('history');
-    //     Route::get('/gaps', [TimesheetController::class, 'gaps'])->name('gaps');
-    //     Route::get('/overtime', [TimesheetController::class, 'overtime'])->name('overtime');
-    //     Route::get('/', [TimesheetController::class, 'index'])->name('index');
-    //     Route::post('/', [TimesheetController::class, 'store'])->name('store');
-    //     Route::get('/{timesheet}', [TimesheetController::class, 'show'])->name('show');
-    //     Route::post('/{timesheet}/approve', [TimesheetController::class, 'approve'])->name('approve');
-    //     Route::post('/{timesheet}/reject', [TimesheetController::class, 'reject'])->name('reject');
-    // });
+    Route::prefix('timesheets')->name('timesheets.')->group(function () {
+        Route::get('/validate', [TimesheetController::class, 'index'])->name('validate'); // Réutilisation de index pour l'instant
+        Route::get('/history', [TimesheetController::class, 'index'])->name('history');
+        Route::get('/gaps', [TimesheetController::class, 'index'])->name('gaps');
+        Route::get('/overtime', [TimesheetController::class, 'index'])->name('overtime');
+        Route::get('/{timesheet}', [TimesheetController::class, 'show'])->name('show');
+        Route::post('/{timesheet}/submit', [TimesheetController::class, 'submit'])->name('submit');
+    });
+
+    // Routes Rapports
+     Route::prefix('reports')->name('reports.')->group(function () {
+         Route::get('/hr', [ReportingController::class, 'hrReport'])->name('hr');
+         Route::get('/campaigns', [ReportingController::class, 'campaignsReport'])->name('campaigns');
+         Route::get('/assignments', [ReportingController::class, 'assignmentsReport'])->name('assignments');
+         Route::get('/timesheets', [ReportingController::class, 'timesheetsReport'])->name('timesheets');
+         Route::get('/team', [ReportingController::class, 'teamReport'])->name('team');
+         Route::get('/productivity', [ReportingController::class, 'productivityReport'])->name('productivity');
+     });
 
     Route::resource('/notifications', NotificationController::class);
 

@@ -18,6 +18,10 @@ class PlanningAssignmentController extends Controller
 {
     public function index()
     {
+        if (!auth()->user()->hasRole(['admin', 'cp'])) {
+            return redirect()->route('planning.mine');
+        }
+
         $allAssignments = PlanningAssignment::with(['employee.user.role', 'planningModel', 'creator'])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -298,13 +302,37 @@ class PlanningAssignmentController extends Controller
 
     public function history()
     {
-        $history = PlanningHistory::with(['planningAssignment.employee.user', 'changedBy'])
-            ->orderBy('created_at', 'desc')
-            ->get()
+        $query = PlanningHistory::with(['planningAssignment.employee.user', 'changedBy'])
+            ->orderBy('created_at', 'desc');
+
+        // Filtrer pour les TC/SUP : ils ne voient que leur propre historique ou celui de leur équipe
+        if (!auth()->user()->hasRole(['admin', 'cp'])) {
+            $employeeId = auth()->user()->employee->id;
+
+            if (auth()->user()->hasRole('sup')) {
+                // Le superviseur voit son historique + celui de ses agents
+                $agentIds = Assignment::where('manager_id', $employeeId)
+                    ->where('status', 'actif')
+                    ->pluck('employee_id');
+
+                $ids = $agentIds->push($employeeId);
+
+                $query->whereHas('planningAssignment', function($q) use ($ids) {
+                    $q->whereIn('employee_id', $ids);
+                });
+            } else {
+                // Le TC ne voit que son propre historique
+                $query->whereHas('planningAssignment', function($q) use ($employeeId) {
+                    $q->where('employee_id', $employeeId);
+                });
+            }
+        }
+
+        $history = $query->get()
             ->map(fn($h) => [
                 'id' => $h->id,
                 'planning_assignment' => [
-                    'employee_name' => $h->planningAssignment->employee->user->name,
+                    'employee_name' => $h->planningAssignment->employee->user->name ?? 'Inconnu',
                 ],
                 'old_status' => $h->old_status,
                 'new_status' => $h->new_status,
@@ -315,6 +343,60 @@ class PlanningAssignmentController extends Controller
 
         return Inertia::render('Planning/Assignments/History', [
             'history' => $history
+        ]);
+    }
+
+    public function mine()
+    {
+        $employee = auth()->user()->employee;
+
+        $assignments = PlanningAssignment::with(['planningModel', 'creator'])
+            ->where('employee_id', $employee->id)
+            ->orderBy('start_date', 'desc')
+            ->get()
+            ->map(fn($a) => [
+                'id' => $a->id,
+                'model' => ['name' => $a->planningModel?->name ?? 'N/A'],
+                'start_date' => $a->start_date ? $a->start_date->format('d/m/Y') : 'N/A',
+                'end_date' => $a->end_date ? $a->end_date->format('d/m/Y') : 'N/A',
+                'status' => $a->status,
+                'creator' => $a->creator->name ?? 'Système',
+            ]);
+
+        return Inertia::render('Planning/Mine', [
+            'assignments' => $assignments
+        ]);
+    }
+
+    public function team()
+    {
+        if (!auth()->user()->hasRole('sup')) {
+            return redirect()->route('planning.mine');
+        }
+
+        $managerId = auth()->user()->employee->id;
+
+        $agentIds = Assignment::where('manager_id', $managerId)
+            ->where('status', 'actif')
+            ->pluck('employee_id');
+
+        $assignments = PlanningAssignment::with(['employee.user', 'planningModel'])
+            ->whereIn('employee_id', $agentIds)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(fn($a) => [
+                'id' => $a->id,
+                'employee' => [
+                    'name' => $a->employee->user->name,
+                ],
+                'model' => ['name' => $a->planningModel?->name ?? 'N/A'],
+                'start_date' => $a->start_date ? $a->start_date->format('d/m/Y') : 'N/A',
+                'end_date' => $a->end_date ? $a->end_date->format('d/m/Y') : 'N/A',
+                'status' => $a->status,
+            ]);
+
+        return Inertia::render('Planning/Team', [
+            'assignments' => $assignments
         ]);
     }
 

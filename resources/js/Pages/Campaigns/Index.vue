@@ -37,6 +37,7 @@ const dt = ref();
 // États pour les modaux
 const campaignDialog = ref(false);
 const campaign = ref({ status: 'active' });
+const selectedCampaign = ref(null);
 const submitted = ref(false);
 
 // Menu contextuel
