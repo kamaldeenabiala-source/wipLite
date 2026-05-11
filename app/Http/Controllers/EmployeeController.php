@@ -82,7 +82,7 @@ class EmployeeController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'user_id'     => ['nullable', 'exists:users,id'],
+            'user_id'     => ['nullable', 'exists:users,id', 'unique:employees,user_id'],
             'first_name'  => ['required', 'string', 'max:100'],
             'last_name'   => ['required', 'string', 'max:100'],
             'birth_date'  => ['required', 'date', 'before:today'],
@@ -99,6 +99,7 @@ class EmployeeController extends Controller
             'birth_date.before'    => 'La date de naissance doit être dans le passé.',
             'email.required'       => 'L\'email est obligatoire.',
             'email.unique'         => 'Cet email est déjà utilisé.',
+            'user_id.unique'       => 'Ce compte utilisateur est déjà associé à un autre employé.',
             'position_id.required' => 'Le poste est obligatoire.',
             'salary_base.required' => 'Le salaire de base est obligatoire.',
             'status.required'      => 'Le statut est obligatoire.',
@@ -143,7 +144,7 @@ class EmployeeController extends Controller
     public function update(Request $request, Employee $employee)
     {
         $validated = $request->validate([
-            'user_id'     => ['nullable', 'exists:users,id'],
+            'user_id'     => ['nullable', 'exists:users,id', 'unique:employees,user_id,' . $employee->id],
             'first_name'  => ['sometimes', 'string', 'max:100'],
             'last_name'   => ['sometimes', 'string', 'max:100'],
             'birth_date'  => ['sometimes', 'date', 'before:today'],
@@ -156,6 +157,7 @@ class EmployeeController extends Controller
         ], [
             'birth_date.before'   => 'La date de naissance doit être dans le passé.',
             'email.unique'        => 'Cet email est déjà utilisé par un autre employé.',
+            'user_id.unique'       => 'Ce compte utilisateur est déjà associé à un autre employé.',
             'position_id.exists'  => 'Le poste sélectionné est invalide.',
             'salary_base.numeric' => 'Le salaire doit être un nombre.',
             'status.in'           => 'Le statut est invalide.',
