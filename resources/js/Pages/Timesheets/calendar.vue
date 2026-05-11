@@ -167,27 +167,38 @@ const getTotalsData = (timesheet) => {
 </script>
 
 <template>
-    <!-- SEO et Notifications -->
     <Head title="Calendrier de Pointage" />
     <Toast />
 
     <AppLayout>
-        <div class="p-6 bg-[#fcfdfe] min-h-screen">
+        <!-- Fond très clair pour faire ressortir le tableau blanc -->
+        <div class="p-8 bg-slate-50 min-h-screen">
             
-            <!-- SECTION EN-TÊTE -->
-            <div class="flex justify-between items-center mb-6">
+            <!-- SECTION EN-TÊTE : Design épuré -->
+            <div class="flex justify-between items-end mb-8">
                 <div>
-                    <h1 class="text-2xl font-black text-slate-800 uppercase tracking-tighter">Gestion des Flux</h1>
-                    <p class="text-slate-400 text-sm">Suivi hebdomadaire des présences</p>
+                    <h1 class="text-3xl font-black text-slate-900 uppercase tracking-tighter leading-none">
+                        Gestion des Flux
+                    </h1>
+                    <p class="text-slate-500 text-sm mt-2 font-medium">
+                        Suivi hebdomadaire des présences et pointages
+                    </p>
                 </div>
                 <div class="flex gap-3">
-                    <!-- Bouton dynamique : n'apparaît que si des lignes sont cochées -->
-                    <Button v-if="selectedEmployees.length > 0" label="Saisie Groupée" icon="pi pi-users" class="p-button-help p-button-sm shadow-sm" @click="openBulkEdit" />
-                    <Button label="Nouveau Téléconseiller" icon="pi pi-user-plus" class="p-button-primary p-button-sm shadow-sm" @click="router.visit('/employees/create')" />
+                    <Button v-if="selectedEmployees.length > 0" 
+                            label="Saisie Groupée" 
+                            icon="pi pi-users" 
+                            class="p-button-raised p-button-help p-button-sm font-bold border-0 shadow-lg shadow-purple-200" 
+                            @click="openBulkEdit" />
+                    
+                    <Button label="Nouveau Téléconseiller" 
+                            icon="pi pi-user-plus" 
+                            class="p-button-raised p-button-primary p-button-sm font-bold border-0 shadow-lg shadow-blue-200" 
+                            @click="router.visit('/employees/create')" />
                 </div>
             </div>
 
-            <!-- TABLEAU DE DONNÉES -->
+            <!-- TABLEAU : Blanc pur avec ombres douces -->
             <DataTable 
                 :value="calendar" 
                 v-model:selection="selectedEmployees" 
@@ -195,59 +206,86 @@ const getTotalsData = (timesheet) => {
                 :rows="rows" 
                 dataKey="id" 
                 scrollable 
-                class="p-datatable-sm custom-table border-0 rounded-xl overflow-hidden shadow-xl shadow-slate-200/50"
+                class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/60"
             >
-                <!-- Colonne de sélection avec filtre sur le statut -->
-                <Column selectionMode="multiple" headerStyle="width: 3rem; background: #f8fafc" frozen :disabledSelection="data => data.status === 'soumis'"></Column>
+                <!-- Colonne de sélection -->
+                <Column selectionMode="multiple" 
+                        class="bg-slate-50/50 border-b border-slate-100" 
+                        headerStyle="background: #f8fafc; width: 3rem;" 
+                        frozen 
+                        :disabledSelection="data => data.status === 'soumis'">
+                </Column>
                 
                 <!-- Colonne Employé -->
-                <Column frozen header="Employés" style="min-width: 250px">
+                <Column frozen header="Employés" class="border-b border-slate-100 bg-white" style="min-width: 280px">
                     <template #body="{ data }">
-                        <div class="flex flex-col py-2 px-1">
-                            <span class="font-bold text-slate-700 text-sm">{{ data.employee.first_name }} {{ data.employee.last_name }}</span>
-                            <div class="flex gap-2 mt-1">
-                                <small class="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded font-medium">ID: {{ data.employee.matricule }}</small>
-                                <small class="text-[10px] text-slate-400 self-center">Par : {{ data.validator?.first_name || 'N/A' }}</small>
+                        <div class="flex flex-col py-3 px-2">
+                            <span class="font-extrabold text-slate-800 text-sm tracking-tight">
+                                {{ data.employee.first_name }} {{ data.employee.last_name }}
+                            </span>
+                            <div class="flex items-center gap-2 mt-1.5">
+                                <span class="px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-black rounded-full uppercase tracking-wider border border-blue-100">
+                                    ID: {{ data.employee.matricule }}
+                                </span>
+                                <span class="text-[10px] text-slate-400 italic">
+                                    Validé par: {{ data.validator?.first_name || 'En attente' }}
+                                </span>
                             </div>
                         </div>
                     </template>
                 </Column>
 
-                <!-- Colonnes jours de la semaine (Boucle sur periodDates) -->
-                <Column v-for="date in periodDates" :key="date" :header="formatHeader(date)" class="text-center">
+                <!-- Colonnes jours (Cellules harmonieuses) -->
+                <Column v-for="date in periodDates" :key="date" :header="formatHeader(date)" class="text-center border-b border-slate-100">
                     <template #body="{ data }">
-                        <div @click="openTimeCard(data, date)" :class="getCellClass(data, date)" class="m-1 p-2 border-2 rounded-lg cursor-pointer hover:scale-[1.02] active:scale-95 transition-all flex flex-col items-center justify-center min-h-[65px] group">
-                            <span class="text-[8px] font-bold uppercase tracking-widest opacity-60 group-hover:opacity-100">{{ data.status }}</span>
-                            <div v-if="!getEntry(data.entries, date).is_empty" class="text-sm font-black mt-0.5">
-                                {{ getEntry(data.entries, date).total_hours }}<span class="text-[10px] ml-0.5">h</span>
+                        <div @click="openTimeCard(data, date)" 
+                             :class="[
+                                getCellClass(data, date),
+                                'm-1.5 p-3 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:scale-90 flex flex-col items-center justify-center min-h-[70px] min-w-[70px]'
+                             ]">
+                            <span class="text-[7px] font-black uppercase tracking-widest mb-1 opacity-70">{{ data.status }}</span>
+                            
+                            <div v-if="!getEntry(data.entries, date).is_empty" class="flex items-baseline">
+                                <span class="text-sm font-black">{{ getEntry(data.entries, date).total_hours }}</span>
+                                <span class="text-[9px] ml-0.5 font-bold italic">h</span>
                             </div>
+                            
                             <div v-else class="text-[9px] font-bold opacity-40 italic uppercase tracking-tighter">Absent</div>
                         </div>
                     </template>
                 </Column>
 
-                <!-- Colonne Résumé Totaux -->
-                <Column header="Total (R/P)" class="text-center" style="min-width: 130px">
+                <!-- Résumé Totaux -->
+                <Column header="Total (R/P)" class="text-center border-b border-slate-100 bg-slate-50/30" style="min-width: 140px">
                     <template #body="{ data }">
-                        <div class="total-container flex items-center justify-center gap-1" :class="getTotalsData(data).worked >= getTotalsData(data).planned ? 'text-emerald-600' : 'text-rose-500'">
-                            <span class="real-hours text-xl font-black italic">{{ getTotalsData(data).worked.toFixed(1) }}</span>
-                            <span class="separator">/</span>
-                            <span class="planned-hours text-[11px] font-bold self-end mb-1 text-slate-400">{{ getTotalsData(data).planned.toFixed(1) }}h</span>
+                        <div class="flex items-center justify-center py-2 px-3 bg-white rounded-lg border border-slate-100 shadow-sm mx-2">
+                            <span :class="[
+                                getTotalsData(data).worked >= getTotalsData(data).planned ? 'text-emerald-600' : 'text-rose-500',
+                                'text-lg font-black italic tracking-tighter'
+                            ]">
+                                {{ getTotalsData(data).worked.toFixed(1) }}
+                            </span>
+                            <span class="mx-1.5 text-slate-300 font-light text-xl">/</span>
+                            <span class="text-[10px] font-extrabold text-slate-400 self-end mb-1">
+                                {{ getTotalsData(data).planned.toFixed(1) }}h
+                            </span>
                         </div>
                     </template>
                 </Column>
 
-                <!-- Colonne Actions rapides -->
-                <Column header="Action" class="text-center" style="min-width: 80px">
+                <!-- Actions -->
+                <Column header="Action" class="text-center border-b border-slate-100" style="min-width: 90px">
                     <template #body="{ data }">
-                        <!-- Le bouton de soumission n'est visible que pour les managers -->
-                        <button v-if="(role === 'cp' || role === 'admin') && data.status !== 'soumis'" @click="openConfirm(data)" class="p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-all">
+                        <button v-if="(role === 'cp' || role === 'admin') && data.status !== 'soumis'" 
+                                @click="openConfirm(data)" 
+                                class="p-2.5 text-blue-500 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-xl transition-all duration-300 shadow-sm border border-blue-100">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                             </svg>
                         </button>
-                        <!-- Icône cadenas si la ligne est verrouillée -->
-                        <div v-if="data.status === 'soumis'" class="text-emerald-400 bg-emerald-50 w-8 h-8 flex items-center justify-center rounded-full mx-auto">
+                        
+                        <div v-if="data.status === 'soumis'" 
+                             class="w-10 h-10 bg-emerald-50 text-emerald-500 flex items-center justify-center rounded-full border border-emerald-100 mx-auto shadow-inner">
                             <i class="pi pi-lock text-sm"></i>
                         </div>
                     </template>
@@ -255,11 +293,12 @@ const getTotalsData = (timesheet) => {
             </DataTable>
         </div>
 
-        <!-- MODALS -->
-        <Dialog v-model:visible="displayModal" :header="'Pointage'" :modal="true" :style="{ width: '400px' }">
+        <!-- MODALS : Unifiés -->
+        <Dialog v-model:visible="displayModal" :header="'Saisie de Pointage'" :modal="true" :style="{ width: '400px' }" class="p-fluid">
             <TimesCard v-if="displayModal" :data="selectedData" @close="displayModal = false" />
         </Dialog>
 
         <ConfirmDialog v-model:visible="showConfirmDialog" :timesheetId="selectedForSubmit?.id" :employeeName="selectedForSubmit?.name" />
     </AppLayout>
 </template>
+
