@@ -4,8 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Employee extends Model
 {
@@ -33,6 +34,16 @@ class Employee extends Model
         'salary_base' => 'decimal:2',
     ];
 
+    /**
+     * Boot the model.
+     */
+    
+
+    /**
+     * Génère un matricule unique (ex: EMP-2026-0001)
+     */
+   
+
     // Statuts disponibles
     const STATUS_ACTIF     = 'actif';
     const STATUS_INACTIF   = 'inactif';
@@ -43,6 +54,16 @@ class Employee extends Model
         self::STATUS_INACTIF,
         self::STATUS_SUSPENDU,
     ];
+
+    public function timesheets(): HasMany
+    {
+        return $this->hasMany(Timesheet::class);
+    }
+
+    public function timesheetEntries(): HasManyThrough
+    {
+        return $this->hasManyThrough(TimesheetEntry::class, Timesheet::class);
+    }
 
 
     // -------------------------------------------------------

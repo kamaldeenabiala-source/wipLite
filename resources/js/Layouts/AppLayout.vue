@@ -1,9 +1,13 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { Link, usePage, Head } from '@inertiajs/vue3';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
+import Toast from 'primevue/toast';
+import ConfirmDialog from 'primevue/confirmdialog';
+import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
 import {
   LayoutDashboard,
   Users,
@@ -25,6 +29,34 @@ import {
 const page = usePage();
 const activeMainMenu = ref('dashboard');
 const isHoveringSidebar = ref(false);
+
+const findActiveMenu = () => {
+  const currentPath = page.url.split('?')[0];
+  const role = page.props.auth?.role;
+  const config = menuConfig[role] ?? menuConfig.tc;
+  
+  // Chercher d'abord une correspondance exacte dans les sous-menus
+  for (const [menuId, subMenus] of Object.entries(config.sub)) {
+    if (subMenus.some(sub => sub.href === currentPath)) {
+      activeMainMenu.value = menuId;
+      return;
+    }
+  }
+
+  // Si pas de correspondance exacte, chercher par préfixe (pour les routes de création/édition par ex)
+  for (const [menuId, subMenus] of Object.entries(config.sub)) {
+    if (subMenus.some(sub => {
+      if (sub.href === '/') return currentPath === '/';
+      return currentPath.startsWith(sub.href + '/') || currentPath === sub.href;
+    })) {
+      activeMainMenu.value = menuId;
+      return;
+    }
+  }
+};
+
+onMounted(findActiveMenu);
+watch(() => page.url, findActiveMenu);
 
  const menuConfig = {
 
@@ -121,7 +153,7 @@ const isHoveringSidebar = ref(false);
 
       timesheets: [
 
-        { label: 'Saisie des heures',      href: '/timesheets/entry' },
+        { label: 'Saisie des heures',      href: '/timesheets' },
 
         { label: 'Validation des heures',  href: '/timesheets/validate' },
 
@@ -256,7 +288,7 @@ const isHoveringSidebar = ref(false);
 
       timesheets: [
 
-        { label: 'Saisie des heures superviseurs', href: '/timesheets/entry' },
+        { label: 'Saisie des heures superviseurs', href: '/timesheets' },
 
         { label: 'Validation des heures',          href: '/timesheets/validate' },
 
@@ -337,7 +369,7 @@ const isHoveringSidebar = ref(false);
 
       timesheets: [
 
-        { label: 'Saisie des heures TC',  href: '/timesheets/entry' },
+        { label: 'Saisie des heures TC',  href: '/timesheets' },
 
         { label: 'Historique des heures', href: '/timesheets/history' },
 
@@ -444,6 +476,28 @@ const currentSubMenu = computed(() => {
 
 const hasSubMenu = computed(() => currentSubMenu.value.length > 0);
 const sidebarWidth = computed(() => (isHoveringSidebar.value || !hasSubMenu.value) ? 'w-64' : 'w-20');
+
+const confirm = useConfirm();
+
+const logout = () => {
+  confirm.require({
+    message: 'Êtes-vous sûr de vouloir vous déconnecter ?',
+    header: 'Confirmation de déconnexion',
+    icon: 'pi pi-exclamation-triangle',
+    acceptProps: {
+      label: 'Se déconnecter',
+      severity: 'danger'
+    },
+    rejectProps: {
+      label: 'Annuler',
+      severity: 'secondary',
+      variant: 'text'
+    },
+    accept: () => {
+      router.post(route('logout'));
+    }
+  });
+};
 </script>
 
 <template>
@@ -459,7 +513,7 @@ const sidebarWidth = computed(() => (isHoveringSidebar.value || !hasSubMenu.valu
     >
       <div class="flex items-center px-4 border-b border-blue-100/50 bg-gradient-to-r from-blue-600 to-indigo-600 h-20 flex-shrink-0">
         <Link :href="route('dashboard')" class="flex items-center gap-3">
-          <ApplicationLogo class="h-8 w-auto fill-current text-white flex-shrink-0" />
+          <ApplicationLogo class="h-9 w-auto flex-shrink-0" />
           <span v-if="isHoveringSidebar || !hasSubMenu" class="text-xl font-black text-white tracking-tighter whitespace-nowrap uppercase">WipLite</span>
         </Link>
       </div>
@@ -498,10 +552,20 @@ const sidebarWidth = computed(() => (isHoveringSidebar.value || !hasSubMenu.valu
           v-for="item in currentSubMenu"
           :key="item.href"
           :href="item.href"
-          class="flex items-center justify-between group px-4 py-3.5 rounded-2xl text-slate-600 hover:bg-blue-600 hover:text-white transition-all duration-200"
+          class="flex items-center justify-between group px-4 py-3.5 rounded-2xl transition-all duration-200"
+          :class="[
+            (page.url === item.href || (item.href !== '/' && page.url.startsWith(item.href)))
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+              : 'text-slate-600 hover:bg-blue-50 hover:text-blue-600'
+          ]"
         >
           <span class="text-[15px] font-bold tracking-tight">{{ item.label }}</span>
-          <div class="w-1.5 h-1.5 rounded-full bg-blue-200 group-hover:bg-white transition-colors"></div>
+          <div :class="[
+            'w-1.5 h-1.5 rounded-full transition-colors',
+            (page.url === item.href || (item.href !== '/' && page.url.startsWith(item.href)))
+              ? 'bg-white'
+              : 'bg-blue-200 group-hover:bg-blue-600'
+          ]"></div>
         </Link>
       </nav>
     </aside>
@@ -541,9 +605,9 @@ const sidebarWidth = computed(() => (isHoveringSidebar.value || !hasSubMenu.valu
                 <UserCircle class="w-4 h-4" /> Profil
               </DropdownLink>
               <div class="border-t border-slate-50"></div>
-              <DropdownLink :href="route('logout')" method="post" as="button" class="flex items-center gap-2 py-3 font-bold text-red-600">
+              <button @click="logout" class="w-full flex items-center gap-2 py-3 px-4 font-bold text-red-600 hover:bg-red-50 transition-colors">
                 <LogOut class="w-4 h-4" /> Déconnexion
-              </DropdownLink>
+              </button>
             </template>
           </Dropdown>
         </div>
@@ -553,6 +617,8 @@ const sidebarWidth = computed(() => (isHoveringSidebar.value || !hasSubMenu.valu
         <slot />
       </div>
     </main>
+    <Toast />
+    <ConfirmDialog />
   </div>
 </template>
 

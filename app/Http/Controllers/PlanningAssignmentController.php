@@ -11,6 +11,9 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 
+use App\Models\Campaign;
+use App\Models\Position;
+
 class PlanningAssignmentController extends Controller
 {
     public function index()
@@ -27,8 +30,22 @@ class PlanningAssignmentController extends Controller
             })
             ->get();
 
+        // Récupérer les chefs de plateau pour l'affectation des superviseurs
+        $chefsDePlateau = Employee::whereHas('user.role', function($q) {
+            $q->where('name', 'cp');
+        })->get();
+
+        // Récupérer le position_id pour SUP
+        $supPosition = Position::where('code', 'SUP')->first();
+
         $supervisorAssignments = $supervisors->map(function ($supervisor) use ($allAssignments) {
             $supervisorAssignments = $allAssignments->where('employee_id', $supervisor->id);
+
+            // Vérifier si le superviseur a une affectation de campagne active
+            $campaignAssignment = Assignment::with('campaign')
+                ->where('employee_id', $supervisor->id)
+                ->where('status', 'actif')
+                ->first();
 
             $teleconseillerIds = Assignment::where('manager_id', $supervisor->id)
                 ->where('status', 'actif')
@@ -40,36 +57,42 @@ class PlanningAssignmentController extends Controller
                 'supervisor' => [
                     'id' => $supervisor->id,
                     'name' => $supervisor->user->name,
+                    'has_campaign' => $campaignAssignment !== null,
+                    'campaign_name' => $campaignAssignment?->campaign?->name,
                 ],
                 'assignments' => $supervisorAssignments->map(fn($a) => [
                     'id' => $a->id,
-                    'model' => ['name' => $a->planningModel->name],
-                    'start_date' => $a->start_date->format('d/m/Y'),
-                    'end_date' => $a->end_date->format('d/m/Y'),
+                    'model' => ['name' => $a->planningModel?->name ?? 'N/A'],
+                    'start_date' => $a->start_date ? $a->start_date->format('d/m/Y') : 'N/A',
+                    'end_date' => $a->end_date ? $a->end_date->format('d/m/Y') : 'N/A',
                     'status' => $a->status,
                 ]),
                 'teleconseillers' => $teleconseillerAssignments->map(fn($a) => [
                     'id' => $a->id,
                     'employee' => [
-                        'name' => $a->employee->user->name,
-                        'role' => $a->employee->user->role?->name ?? 'N/A',
+                        'name' => $a->employee?->user?->name ?? 'N/A',
+                        'role' => $a->employee?->user?->role?->name ?? 'N/A',
                     ],
-                    'model' => ['name' => $a->planningModel->name],
-                    'start_date' => $a->start_date->format('d/m/Y'),
-                    'end_date' => $a->end_date->format('d/m/Y'),
+                    'model' => ['name' => $a->planningModel?->name ?? 'N/A'],
+                    'start_date' => $a->start_date ? $a->start_date->format('d/m/Y') : 'N/A',
+                    'end_date' => $a->end_date ? $a->end_date->format('d/m/Y') : 'N/A',
                     'status' => $a->status,
                 ]),
             ];
         });
 
         return Inertia::render('Planning/Assignments/Index', [
-            'supervisorAssignments' => $supervisorAssignments
+            'supervisorAssignments' => $supervisorAssignments,
+            'campaigns' => Campaign::where('status', 'active')->get(),
+            'chefsDePlateau' => $chefsDePlateau,
+            'supPositionId' => $supPosition?->id
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
         return Inertia::render('Planning/Assignments/Create', [
+            'selected_supervisor_id' => $request->query('supervisor_id'),
             'supervisors' => Employee::with('user.role')
                             ->whereHas('user', function ($query) {
                                 $query->whereHas('role', function ($q) {
