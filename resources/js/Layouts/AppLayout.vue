@@ -111,21 +111,19 @@ watch(() => page.url, findActiveMenu);
 
         { label: 'Liste des campagnes',    href: '/campaigns' },
 
-        { label: 'Créer une campagne',     href: '/campaigns/create' },
+        { label: 'Campagnes actives',      href: '/active/campaigns' },
 
-        { label: 'Campagnes actives',      href: '/campaigns/active' },
-
-        { label: 'Campagnes terminées',    href: '/campaigns/closed' },
+        { label: 'Campagnes inactives',    href: '/inactive/campaigns' },
 
       ],
 
       assignments: [
 
-        { label: 'Affectation CP → Campagne', href: '/assignments/cp' },
+        { label: 'Affectation CP → Campagne', href: '/assign/cp' },
 
-        { label: 'Affectation SUP → CP',      href: '/assignments/sup' },
+        { label: 'Affectation SUP → CP',      href: '/assign/sup' },
 
-        { label: 'Affectation TC → SUP',      href: '/assignments/tc' },
+        { label: 'Affectation TC → SUP',      href: '/assign/tc' },
 
         { label: 'Vue hiérarchique',          href: '/assignments/hierarchy' },
 

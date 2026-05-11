@@ -141,6 +141,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
     Route::post('/timesheet-entries', [TimesheetEntryController::class, 'store'])->name('timesheet-entries.store');
 
+<<<<<<< HEAD
     // --- RAPPORTS ---
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/hr', [ReportingController::class, 'hrReport'])->name('hr');
@@ -149,6 +150,87 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/timesheets', [ReportingController::class, 'timesheetsReport'])->name('timesheets');
         Route::get('/team', [ReportingController::class, 'teamReport'])->name('team');
         Route::get('/productivity', [ReportingController::class, 'productivityReport'])->name('productivity');
+=======
+    Route::get('/employees/history',    [EmployeeController::class, 'history'])->name('employees.history');//r
+    Route::resource('/employees', EmployeeController::class);//r
+    Route::resource('/positions', PositionController::class)->only(['index', 'show']);//r
+
+    Route::middleware(['role:admin'])->group(function () {
+
+        // USERS
+        Route::resource('users', UserController::class);
+
+        // ROLES & PERMISSIONS
+
+        Route::post('/users/roles', [RoleController::class, 'store'])
+            ->name('roles.store');
+
+        Route::put('/users/roles/{role}', [RoleController::class, 'update'])
+            ->name('roles.update');
+
+Route::middleware('auth')->group(function () {
+    // campaigns route
+    Route::resource('campaigns', CampaignController::class);
+    Route::get('/active/campaigns', [CampaignController::class, 'active'])->name('active');
+    Route::get('/inactive/campaigns', [CampaignController::class, 'inactive'])->name('inactive');
+    Route::post(
+        '/assign/{assignment}/campaign',
+        [AssignmentController::class, 'assignNewCampaign']
+    )->name('assignments.assignCampaign');
+    Route::patch('/campaigns/{campaign}/status', [CampaignController::class, 'changeStatus'])->name('campaigns.status');
+
+    // assignments route
+    Route::resource('assignments', AssignmentController::class);
+    Route::get('/assign/cp', [AssignmentController::class, 'assignCP'])->name('assign.cp');
+    Route::post('/assign/cp', [AssignmentController::class, 'storeCP'])
+        ->name('assign.cp.store');
+    Route::get('/assign/sup', [AssignmentController::class, 'assignSUP'])
+        ->name('assign.sup');
+    Route::post('/assign/sup', [AssignmentController::class, 'storeSUP'])
+        ->name('assign.sup.store');
+    Route::get(
+        '/assign/tc',
+        [AssignmentController::class, 'assignTC']
+    )->name('assign.tc');
+    Route::post(
+        '/assign/tc',
+        [AssignmentController::class, 'storeTC']
+    )->name('assign.tc.store');
+
+
+/**
+ * =========================================
+ * LIBÉRATION
+ * =========================================
+ */
+Route::post(
+    '/assignments/{assignment}/release',
+    [AssignmentController::class, 'release']
+)->name('assignments.release');
+
+/**
+ * =========================================
+ * RÉAFFECTATION
+ * =========================================
+ */
+Route::post(
+    '/assignments/{assignment}/reassign',
+    [AssignmentController::class, 'reassign']
+)->name('assignments.reassign');
+        Route::delete('/users/roles/{role}', [RoleController::class, 'destroy'])
+            ->name('roles.destroy');
+
+        // ACTIVITY LOGS
+        Route::get('/activity-logs', [ActivityLogController::class, 'index'])
+            ->name('activity-logs.index');
+
+        // // SETTINGS
+        // Route::get('/settings', [SettingController::class, 'index'])
+        //     ->name('settings.index');
+
+        // Route::put('/settings', [SettingController::class, 'update'])
+        //     ->name('settings.update');
+>>>>>>> 801fa005ee908483643770c08d89388c440218f0
     });
 
     // --- NOTIFICATIONS ---
@@ -171,5 +253,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/dashboard/admin/alerts', [ReportingController::class, 'alerts'])->name('dashboard.admin.alerts');
     });
 });
+
 
 require __DIR__ . '/auth.php';
