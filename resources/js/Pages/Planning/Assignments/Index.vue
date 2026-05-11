@@ -31,6 +31,7 @@ const getStatusLabel = (status) => {
         case 'en attente': return 'warn';
         case 'suspendu': return 'danger';
         case 'terminé': return 'secondary';
+        case 'non assigné': return 'info';
         default: return 'secondary';
     }
 };
@@ -216,7 +217,7 @@ const terminateAssignment = (id) => {
                     </Column>
                     <Column field="model.name" header="Planning">
                         <template #body="{ data }">
-                            <div class="flex items-center gap-2 text-blue-600 font-semibold">
+                            <div class="flex items-center gap-2" :class="data.has_planning ? 'text-blue-600 font-semibold' : 'text-slate-400'">
                                 <Clock class="w-4 h-4" />
                                 {{ data.model.name }}
                             </div>
@@ -224,7 +225,7 @@ const terminateAssignment = (id) => {
                     </Column>
                     <Column header="Période">
                         <template #body="{ data }">
-                            <span class="text-xs text-slate-500 flex items-center gap-1">
+                            <span class="text-xs flex items-center gap-1" :class="data.has_planning ? 'text-slate-500' : 'text-slate-300'">
                                 <Calendar class="w-3 h-3" />
                                 Du {{ data.start_date }} au {{ data.end_date }}
                             </span>
@@ -237,7 +238,7 @@ const terminateAssignment = (id) => {
                     </Column>
                     <Column header="Actions" headerStyle="width: 15rem">
                         <template #body="{ data }">
-                            <div class="flex items-center gap-1.5">
+                            <div class="flex items-center gap-1.5" v-if="data.has_planning">
                                 <Button v-if="data.status === 'en attente'" @click="validateAssignment(data.id)" class="!bg-emerald-500 !border-none !text-white !px-3 !py-2 !text-[10px] !font-black !rounded-xl !uppercase !tracking-widest flex items-center gap-2 shadow-lg shadow-emerald-500/10 hover:!bg-emerald-600 transition-all">
                                     <CheckCircle class="w-3.5 h-3.5" />
                                     Valider
@@ -250,6 +251,9 @@ const terminateAssignment = (id) => {
                                     <XCircle class="w-3.5 h-3.5" />
                                     Terminer
                                 </Button>
+                            </div>
+                            <div v-else class="text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                                En attente superviseur
                             </div>
                         </template>
                     </Column>
