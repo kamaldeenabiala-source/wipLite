@@ -198,7 +198,7 @@ const terminateAssignment = (id) => {
             </div>
         </div>
 
-        <Dialog v-model:visible="showTeleconseillersModal" header="Téléconseillers de l'équipe" :style="{ width: '60rem' }">
+        <Dialog v-model="showTeleconseillersModal" header="Téléconseillers de l'équipe" :style="{ width: '60rem' }">
             <div v-if="selectedSupervisor" class="space-y-4">
                 <h3 class="text-lg font-bold text-slate-800">Équipe de {{ selectedSupervisor.supervisor.name }}</h3>
                 <DataTable :value="selectedSupervisor.teleconseillers" class="p-datatable-sm">

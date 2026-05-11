@@ -393,7 +393,7 @@ const toggleStatus = (employee) => {
         <!-- DIALOG — Formulaire Créer / Modifier             -->
         <!-- ================================================ -->
         <Dialog
-            v-model:visible="dialogVisible"
+            v-model="dialogVisible"
             :header="isEditing ? 'Modifier l\'employé' : 'Nouvel employé'"
             :style="{ width: '650px' }"
             :modal="true"

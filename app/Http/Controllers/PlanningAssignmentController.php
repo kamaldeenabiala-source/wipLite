@@ -238,10 +238,58 @@ class PlanningAssignmentController extends Controller
 
     /**
      * Valide une affectation spécifique pour la rendre effective.
+     * Lorsqu'on valide un superviseur, on valide aussi ses agents automatiquement.
      */
     public function validateAssignment(Request $request, $id)
     {
         $assignment = PlanningAssignment::findOrFail($id);
+        
+        $this->validateAssignmentAndLinkedAssignments($assignment);
+
+        return back()->with('success', 'Le planning est désormais effectif.');
+    }
+
+    /**
+     * Valide un lot d'affectations et leurs assignments liées (agents).
+     */
+    public function bulkValidate(Request $request)
+    {
+        $ids = $request->input('ids', []);
+
+        $assignments = PlanningAssignment::whereIn('id', $ids)
+            ->where('status', 'en attente')
+            ->get();
+
+        foreach ($assignments as $assignment) {
+            $this->validateAssignmentAndLinkedAssignments($assignment);
+        }
+
+        return back()->with('success', count($assignments) . ' plannings ont été validés.');
+    }
+
+    /**
+     * Valide toutes les affectations en attente (superviseurs) et leurs agents.
+     */
+    public function validateAll()
+    {
+        $assignments = PlanningAssignment::where('status', 'en attente')
+            ->whereHas('employee.user.role', function ($query) {
+                $query->where('name', 'sup');
+            })
+            ->get();
+
+        foreach ($assignments as $assignment) {
+            $this->validateAssignmentAndLinkedAssignments($assignment);
+        }
+
+        return back()->with('success', count($assignments) . ' plannings ont été validés.');
+    }
+
+    /**
+     * Valide une affectation et les affectations des agents liés au même superviseur et planning.
+     */
+    private function validateAssignmentAndLinkedAssignments($assignment)
+    {
         $oldStatus = $assignment->status;
 
         $assignment->update([
@@ -258,61 +306,35 @@ class PlanningAssignmentController extends Controller
             'reason' => 'Validation du planning',
         ]);
 
-        return back()->with('success', 'Le planning est désormais effectif.');
-    }
+        // Si c'est un superviseur, valider aussi les affectations de ses agents
+        if ($assignment->employee->user->role->name === 'sup') {
+            $teleconseillerIds = Assignment::where('manager_id', $assignment->employee_id)
+                ->where('status', 'actif')
+                ->pluck('employee_id');
 
-    public function bulkValidate(Request $request)
-    {
-        $ids = $request->input('ids', []);
+            $linkedAssignments = PlanningAssignment::whereIn('employee_id', $teleconseillerIds)
+                ->where('planning_model_id', $assignment->planning_model_id)
+                ->where('start_date', $assignment->start_date)
+                ->where('end_date', $assignment->end_date)
+                ->where('status', 'en attente')
+                ->get();
 
-        $assignments = PlanningAssignment::whereIn('id', $ids)
-            ->where('status', 'en attente')
-            ->get();
-
-        foreach ($assignments as $assignment) {
-            $oldStatus = $assignment->status;
-
-            $assignment->update([
-                'status' => 'validé',
-                'validated_at' => now(),
-                'validated_by' => Auth::id()
-            ]);
-
-            PlanningHistory::create([
-                'planning_assignment_id' => $assignment->id,
-                'old_status' => $oldStatus,
-                'new_status' => 'validé',
-                'changed_by' => Auth::id(),
-                'reason' => 'Validation en lot',
-            ]);
+            foreach ($linkedAssignments as $linkedAssignment) {
+                $linkedOldStatus = $linkedAssignment->status;
+                $linkedAssignment->update([
+                    'status' => 'validé',
+                    'validated_at' => now(),
+                    'validated_by' => Auth::id()
+                ]);
+                PlanningHistory::create([
+                    'planning_assignment_id' => $linkedAssignment->id,
+                    'old_status' => $linkedOldStatus,
+                    'new_status' => 'validé',
+                    'changed_by' => Auth::id(),
+                    'reason' => 'Validation automatique (héritage du superviseur)',
+                ]);
+            }
         }
-
-        return back()->with('success', count($assignments) . ' plannings ont été validés.');
-    }
-
-    public function validateAll()
-    {
-        $assignments = PlanningAssignment::where('status', 'en attente')->get();
-
-        foreach ($assignments as $assignment) {
-            $oldStatus = $assignment->status;
-
-            $assignment->update([
-                'status' => 'validé',
-                'validated_at' => now(),
-                'validated_by' => Auth::id()
-            ]);
-
-            PlanningHistory::create([
-                'planning_assignment_id' => $assignment->id,
-                'old_status' => $oldStatus,
-                'new_status' => 'validé',
-                'changed_by' => Auth::id(),
-                'reason' => 'Validation de tous les plannings',
-            ]);
-        }
-
-        return back()->with('success', count($assignments) . ' plannings ont été validés.');
     }
 
     public function suspendAssignment(Request $request, $id)
@@ -359,6 +381,9 @@ class PlanningAssignmentController extends Controller
     {
         $pendingAssignments = PlanningAssignment::with(['employee.user.role', 'planningModel'])
             ->where('status', 'en attente')
+            ->whereHas('employee.user.role', function ($query) {
+                $query->where('name', 'sup');
+            })
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(fn($a) => [
