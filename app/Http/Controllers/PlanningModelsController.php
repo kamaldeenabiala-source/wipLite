@@ -21,17 +21,16 @@ class PlanningModelsController extends Controller
                 ->latest()
                 ->get(),
 
-            // Récupération des affectations réelles avec les relations
             'activeAssignments' => PlanningAssignment::with(['employee.user', 'planningModel'])
-                ->where('status', 'active') // Optionnel : filtrer par statut
+                ->where('status', 'validé')
                 ->latest()
                 ->get()
                 ->map(fn($assign) => [
                     'id' => $assign->id,
-                    'user_name' => $assign->employee->user->name, // On suppose que Employee a une relation user
-                    'model_name' => $assign->planningModel->name,
-                    'start_date' => $assign->start_date->format('Y-m-d'), // Assure-toi qu'ils sont castés en date
-                    'end_date' => $assign->end_date ? $assign->end_date->format('Y-m-d') : 'Indéfinie',
+                    'user_name' => $assign->employee?->user?->name ?? 'N/A',
+                    'model_name' => $assign->planningModel?->name ?? 'N/A',
+                    'start_date' => $assign->start_date ? $assign->start_date->format('Y-m-d') : 'N/A',
+                    'end_date' => $assign->end_date ? $assign->end_date->format('Y-m-d') : 'N/A',
                 ]),
         ]);
     }
@@ -89,7 +88,7 @@ class PlanningModelsController extends Controller
      */
     public function destroy(PlanningModel $model)
     {
-        if ($model->planningAssignments()->exists()) {
+        if ($model->assignments()->exists()) {
             return redirect()->back()->with('error', 'Ce modèle est utilisé par des employés.');
         }
 

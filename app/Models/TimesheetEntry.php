@@ -35,7 +35,6 @@ class TimesheetEntry extends Model
     {
         return $this->belongsTo(Timesheet::class);
     }
-
     public function calculateHours()
     {
         if ($this->check_in && $this->check_out) {
@@ -53,4 +52,8 @@ class TimesheetEntry extends Model
     {
         return !is_null($this->absence_type);
     }
+    public function logs()
+{
+    return $this->morphMany(ActivityLog::class, 'model');
+}
 }

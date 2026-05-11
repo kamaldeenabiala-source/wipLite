@@ -27,21 +27,9 @@ class AssignmentHistory extends Model
         'reason'
     ];
 
-    /**
-     * L'affectation liée à cette action
-     */
-    public function assignment()
-    {
-        return $this->belongsTo(Assignment::class);
-    }
+    public function assignment() { return $this->belongsTo(Assignment::class); }
 
-    /**
-     * Employé concerné
-     */
-    public function employee()
-    {
-        return $this->belongsTo(Employee::class);
-    }
+    public function employee() { return $this->belongsTo(Employee::class); }
 
     /**
      * Ancien manager
@@ -75,11 +63,9 @@ class AssignmentHistory extends Model
         return $this->belongsTo(Campaign::class, 'new_campaign_id');
     }
 
-    /**
-     * Utilisateur qui a fait l'action
-     */
-    public function author()
+    public function author() { return $this->belongsTo(User::class, 'changed_by'); }
+    public function logs()
     {
-        return $this->belongsTo(User::class, 'changed_by');
+        return $this->morphMany(ActivityLog::class, 'model');
     }
 }
