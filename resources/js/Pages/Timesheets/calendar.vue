@@ -167,20 +167,21 @@ const getTotalsData = (timesheet) => {
 </script>
 
 <template>
+    <!-- SEO et Notifications -->
     <Head title="Calendrier de Pointage" />
     <Toast />
 
     <AppLayout>
-        <!-- Fond très clair pour faire ressortir le tableau blanc -->
-        <div class="p-8 bg-slate-50 min-h-screen">
+        <!-- Conteneur Principal : Fond gris perle très doux -->
+        <div class="p-8 bg-[#f8fafc] min-h-screen">
             
-            <!-- SECTION EN-TÊTE : Design épuré -->
+            <!-- SECTION EN-TÊTE : Titre et Actions -->
             <div class="flex justify-between items-end mb-8">
                 <div>
                     <h1 class="text-3xl font-black text-slate-900 uppercase tracking-tighter leading-none">
                         Gestion des Flux
                     </h1>
-                    <p class="text-slate-500 text-sm mt-2 font-medium">
+                    <p class="text-slate-500 text-sm mt-2 font-medium italic">
                         Suivi hebdomadaire des présences et pointages
                     </p>
                 </div>
@@ -188,17 +189,17 @@ const getTotalsData = (timesheet) => {
                     <Button v-if="selectedEmployees.length > 0" 
                             label="Saisie Groupée" 
                             icon="pi pi-users" 
-                            class="p-button-raised p-button-help p-button-sm font-bold border-0 shadow-lg shadow-purple-200" 
+                            class="p-button-raised p-button-help p-button-sm font-bold border-0 shadow-lg shadow-purple-200/50" 
                             @click="openBulkEdit" />
                     
                     <Button label="Nouveau Téléconseiller" 
                             icon="pi pi-user-plus" 
-                            class="p-button-raised p-button-primary p-button-sm font-bold border-0 shadow-lg shadow-blue-200" 
+                            class="p-button-raised p-button-primary p-button-sm font-bold border-0 shadow-lg shadow-blue-200/50" 
                             @click="router.visit('/employees/create')" />
                 </div>
             </div>
 
-            <!-- TABLEAU : Blanc pur avec ombres douces -->
+            <!-- TABLEAU : Blanc pur, ombres diffuses et coins arrondis -->
             <DataTable 
                 :value="calendar" 
                 v-model:selection="selectedEmployees" 
@@ -206,99 +207,153 @@ const getTotalsData = (timesheet) => {
                 :rows="rows" 
                 dataKey="id" 
                 scrollable 
-                class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/60"
+                class="custom-datatable overflow-hidden rounded-3xl border-0 bg-white shadow-2xl shadow-slate-200/40"
             >
-                <!-- Colonne de sélection -->
+                <!-- Colonne de Sélection (Blanche) -->
                 <Column selectionMode="multiple" 
-                        class="bg-slate-50/50 border-b border-slate-100" 
-                        headerStyle="background: #f8fafc; width: 3rem;" 
+                        headerStyle="background-color: #ffffff; width: 3rem;" 
+                        class="!bg-white border-b border-slate-50" 
                         frozen 
                         :disabledSelection="data => data.status === 'soumis'">
                 </Column>
                 
-                <!-- Colonne Employé -->
-                <Column frozen header="Employés" class="border-b border-slate-100 bg-white" style="min-width: 280px">
+                <!-- Colonne Employé (Forcée en blanc même si figée) -->
+                <Column frozen 
+                        header="Collaborateurs" 
+                        class="border-b border-slate-50 !bg-white" 
+                        headerStyle="background: #ffffff;"
+                        style="min-width: 280px">
                     <template #body="{ data }">
-                        <div class="flex flex-col py-3 px-2">
-                            <span class="font-extrabold text-slate-800 text-sm tracking-tight">
+                        <div class="flex flex-col py-3 px-2 bg-white">
+                            <span class="font-bold text-slate-800 text-sm tracking-tight capitalize">
                                 {{ data.employee.first_name }} {{ data.employee.last_name }}
                             </span>
                             <div class="flex items-center gap-2 mt-1.5">
-                                <span class="px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-black rounded-full uppercase tracking-wider border border-blue-100">
-                                    ID: {{ data.employee.matricule }}
+                                <span class="px-2 py-0.5 bg-slate-100 text-slate-500 text-[9px] font-bold rounded-md uppercase border border-slate-200">
+                                    MAT: {{ data.employee.matricule }}
                                 </span>
-                                <span class="text-[10px] text-slate-400 italic">
-                                    Validé par: {{ data.validator?.first_name || 'En attente' }}
+                                <span class="text-[10px] text-slate-400 font-medium">
+                                    Resp: {{ data.validator?.first_name || 'N/A' }}
                                 </span>
                             </div>
                         </div>
                     </template>
                 </Column>
 
-                <!-- Colonnes jours (Cellules harmonieuses) -->
-                <Column v-for="date in periodDates" :key="date" :header="formatHeader(date)" class="text-center border-b border-slate-100">
+                <!-- Colonnes jours (Cellules colorées harmonieuses) -->
+                <Column v-for="date in periodDates" :key="date" :header="formatHeader(date)" class="text-center border-b border-slate-50 bg-white">
                     <template #body="{ data }">
                         <div @click="openTimeCard(data, date)" 
                              :class="[
                                 getCellClass(data, date),
-                                'm-1.5 p-3 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:scale-90 flex flex-col items-center justify-center min-h-[70px] min-w-[70px]'
+                                'm-1.5 p-3 rounded-2xl border cursor-pointer transition-all duration-300 hover:shadow-xl hover:scale-105 active:scale-95 flex flex-col items-center justify-center min-h-[75px] min-w-[75px] relative group'
                              ]">
-                            <span class="text-[7px] font-black uppercase tracking-widest mb-1 opacity-70">{{ data.status }}</span>
+                            <span class="text-[7px] font-black uppercase tracking-widest mb-1 opacity-50">{{ data.status }}</span>
                             
                             <div v-if="!getEntry(data.entries, date).is_empty" class="flex items-baseline">
-                                <span class="text-sm font-black">{{ getEntry(data.entries, date).total_hours }}</span>
-                                <span class="text-[9px] ml-0.5 font-bold italic">h</span>
+                                <span class="text-sm font-black tracking-tighter">{{ getEntry(data.entries, date).total_hours }}</span>
+                                <span class="text-[9px] ml-0.5 font-bold italic opacity-70">h</span>
                             </div>
                             
-                            <div v-else class="text-[9px] font-bold opacity-40 italic uppercase tracking-tighter">Absent</div>
+                            <div v-else class="text-[10px] font-bold opacity-30 italic">--:--</div>
                         </div>
                     </template>
                 </Column>
 
                 <!-- Résumé Totaux -->
-                <Column header="Total (R/P)" class="text-center border-b border-slate-100 bg-slate-50/30" style="min-width: 140px">
+                <Column header="Cumul R/P" class="text-center border-b border-slate-50 bg-[#fafbfc]" style="min-width: 140px">
                     <template #body="{ data }">
-                        <div class="flex items-center justify-center py-2 px-3 bg-white rounded-lg border border-slate-100 shadow-sm mx-2">
+                        <div class="flex items-center justify-center py-2 px-3 bg-white rounded-xl border border-slate-100 shadow-sm mx-2">
                             <span :class="[
-                                getTotalsData(data).worked >= getTotalsData(data).planned ? 'text-emerald-600' : 'text-rose-500',
-                                'text-lg font-black italic tracking-tighter'
+                                getTotalsData(data).worked >= getTotalsData(data).planned ? 'text-emerald-500' : 'text-rose-500',
+                                'text-lg font-black tracking-tighter'
                             ]">
                                 {{ getTotalsData(data).worked.toFixed(1) }}
                             </span>
-                            <span class="mx-1.5 text-slate-300 font-light text-xl">/</span>
-                            <span class="text-[10px] font-extrabold text-slate-400 self-end mb-1">
+                            <span class="mx-1 text-slate-200 font-light text-xl">/</span>
+                            <span class="text-[11px] font-bold text-slate-400 self-end mb-1">
                                 {{ getTotalsData(data).planned.toFixed(1) }}h
                             </span>
                         </div>
                     </template>
                 </Column>
 
-                <!-- Actions -->
-                <Column header="Action" class="text-center border-b border-slate-100" style="min-width: 90px">
+                <!-- Actions de validation -->
+                <Column header="Validation" class="text-center border-b border-slate-50 bg-white" style="min-width: 90px">
                     <template #body="{ data }">
                         <button v-if="(role === 'cp' || role === 'admin') && data.status !== 'soumis'" 
                                 @click="openConfirm(data)" 
-                                class="p-2.5 text-blue-500 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-xl transition-all duration-300 shadow-sm border border-blue-100">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                            </svg>
+                                class="p-2.5 text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-sm border border-blue-100">
+                            <i class="pi pi-send text-sm"></i>
                         </button>
                         
-                        <div v-if="data.status === 'soumis'" 
-                             class="w-10 h-10 bg-emerald-50 text-emerald-500 flex items-center justify-center rounded-full border border-emerald-100 mx-auto shadow-inner">
-                            <i class="pi pi-lock text-sm"></i>
+                        <div v-else-if="data.status === 'soumis'" 
+                             class="w-10 h-10 bg-emerald-50 text-emerald-500 flex items-center justify-center rounded-full border border-emerald-100 mx-auto">
+                            <i class="pi pi-check-circle text-lg"></i>
                         </div>
                     </template>
                 </Column>
             </DataTable>
         </div>
 
-        <!-- MODALS : Unifiés -->
-        <Dialog v-model:visible="displayModal" :header="'Saisie de Pointage'" :modal="true" :style="{ width: '400px' }" class="p-fluid">
+        <!-- MODALS -->
+        <Dialog v-model:visible="displayModal" header="Détails du Pointage" :modal="true" :style="{ width: '400px' }" class="white-modal">
             <TimesCard v-if="displayModal" :data="selectedData" @close="displayModal = false" />
         </Dialog>
 
         <ConfirmDialog v-model:visible="showConfirmDialog" :timesheetId="selectedForSubmit?.id" :employeeName="selectedForSubmit?.name" />
     </AppLayout>
 </template>
+
+<style scoped>
+/* Nettoyage global du tableau PrimeVue */
+.custom-datatable :deep(.p-datatable-wrapper) {
+    background-color: #ffffff !important;
+}
+
+/* Force l'en-tête en blanc pur */
+.custom-datatable :deep(.p-datatable-thead > tr > th) {
+    background-color: #ffffff !important;
+    color: #64748b !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 20px 15px !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+}
+
+/* Force les colonnes figées (Collaborateurs) en blanc */
+.custom-datatable :deep(.p-datatable-tbody > tr > td.p-frozen-column),
+.custom-datatable :deep(.p-datatable-thead > tr > th.p-frozen-column) {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+}
+
+/* Style de la pagination blanche */
+.custom-datatable :deep(.p-paginator) {
+    background-color: #ffffff !important;
+    border-top: 1px solid #f1f5f9 !important;
+    border-radius: 0 0 24px 24px !important;
+    padding: 15px !important;
+}
+
+/* Harmonisation des lignes du tableau */
+.custom-datatable :deep(.p-datatable-tbody > tr) {
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+}
+
+/* Supprime les bordures et centrage */
+:deep(.p-column-header-content) {
+    justify-content: center !important;
+}
+
+/* Correction spécifique pour l'ombre de la colonne figée */
+.custom-datatable :deep(.p-datatable-tbody > tr > td.p-frozen-column) {
+    box-shadow: none !important;
+    border-right: 1px solid #f1f5f9 !important;
+}
+</style>
+
 
