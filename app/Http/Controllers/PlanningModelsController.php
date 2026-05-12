@@ -18,7 +18,7 @@ class PlanningModelsController extends Controller
     {
         return Inertia::render('Planning/Models/Index', [
             // Récupération des modèles avec le nom du créateur et le nombre d'affectations
-            'planningModels' => PlanningModel::with('creator:id,name')
+            'planningModels' => PlanningModel::with('creator.employee')
                 ->withCount('assignments')
                 ->latest()
                 ->get(),

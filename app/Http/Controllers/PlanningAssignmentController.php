@@ -29,16 +29,14 @@ class PlanningAssignmentController extends Controller
         }
 
         // Récupération de toutes les affectations avec les relations nécessaires
-        $allAssignments = PlanningAssignment::with(['employee.user.role', 'planningModel', 'creator'])
+        $allAssignments = PlanningAssignment::with(['employee.user.role', 'planningModel', 'creator.employee'])
             ->orderBy('created_at', 'desc')
             ->get();
 
         // Liste des superviseurs pour structurer l'affichage par équipe
-        $supervisors = Employee::with('user.role')
-            ->whereHas('user', function ($query) {
-                $query->whereHas('role', function ($q) {
-                    $q->where('name', 'sup');
-                });
+        $supervisors = Employee::with(['user.role', 'position'])
+            ->whereHas('position', function ($query) {
+                $query->where('code', 'SUP');
             })
             ->get();
 
@@ -65,75 +63,49 @@ class PlanningAssignmentController extends Controller
                 ->where('status', 'actif')
                 ->pluck('employee_id');
 
-            // Toujours afficher l'équipe, mais ne montrer que les TC avec planning si le superviseur en a un
-            if ($supervisorAssignments->isNotEmpty()) {
-                // Le superviseur a un planning : afficher les TC qui ont des plannings
-                $teleconseillerAssignments = $allAssignments->whereIn('employee_id', $teleconseillerIds);
-            } else {
-                // Le superviseur n'a pas de planning : afficher l'équipe mais sans plannings
-                $teleconseillerAssignments = collect([]);
-                // On garde les IDs pour quand même afficher l'équipe dans la vue
-            }
-
-            // Récupérer tous les TC de l'équipe pour l'affichage
+            // Récupérer tous les membres de l'équipe même si le superviseur n'a pas de planning
             $allTeamMembers = Employee::with('user.role')
                 ->whereIn('id', $teleconseillerIds)
-                ->get()
-                ->map(fn($emp) => [
-                    'id' => $emp->id,
+                ->get();
+
+            // Plannings des membres de l'équipe
+            $teamPlannings = $allAssignments->filter(function($a) use ($teleconseillerIds) {
+                return in_array($a->employee_id, $teleconseillerIds->toArray());
+            });
+
+            $teleconseillers = $allTeamMembers->map(function($emp) use ($teamPlannings) {
+                $p = $teamPlannings->firstWhere('employee_id', $emp->id);
+                return [
+                    'id' => $p?->id,
                     'employee' => [
-                        'name' => $emp->user->name,
-                        'role' => $emp->user->role?->name ?? 'N/A',
+                        'name' => $emp->user ? $emp->user->name : $emp->full_name,
+                        'role' => $emp->user ? $emp->user->role?->name : 'TC',
                     ],
-                    'has_planning' => $teleconseillerAssignments->where('employee_id', $emp->id)->isNotEmpty(),
-                ]);
-
-            // Combiner les TC avec planning et ceux sans planning
-            $teleconseillersWithPlanning = $teleconseillerAssignments->map(fn($a) => [
-                'id' => $a->id,
-                'employee' => [
-                    'name' => $a->employee?->user?->name ?? 'N/A',
-                    'role' => $a->employee?->user?->role?->name ?? 'N/A',
-                ],
-                'model' => ['name' => $a->planningModel?->name ?? 'N/A'],
-                'start_date' => $a->start_date ? $a->start_date->format('d/m/Y') : 'N/A',
-                'end_date' => $a->end_date ? $a->end_date->format('d/m/Y') : 'N/A',
-                'status' => $a->status,
-                'has_planning' => true,
-            ]);
-
-            // Ajouter les TC sans planning
-            $teleconseillersWithoutPlanning = $allTeamMembers
-                ->filter(fn($member) => !$member['has_planning'])
-                ->map(fn($member) => [
-                    'id' => null,
-                    'employee' => $member['employee'],
-                    'model' => ['name' => 'Aucun planning'],
-                    'start_date' => 'N/A',
-                    'end_date' => 'N/A',
-                    'status' => 'non assigné',
-                    'has_planning' => false,
-                ]);
-
-            $allTeleconseillers = $teleconseillersWithPlanning->merge($teleconseillersWithoutPlanning);
+                    'model' => ['name' => $p?->planningModel?->name ?? 'Aucun planning'],
+                    'start_date' => $p?->start_date ? $p->start_date->format('d/m/Y') : 'N/A',
+                    'end_date' => $p?->end_date ? $p->end_date->format('d/m/Y') : 'N/A',
+                    'status' => $p?->status ?? 'non assigné',
+                    'has_planning' => $p !== null,
+                ];
+            })->values();
 
             return [
                 'supervisor' => [
                     'id' => $supervisor->id,
-                    'name' => $supervisor->user->name,
+                    'name' => $supervisor->user ? $supervisor->user->name : $supervisor->full_name,
                     'has_campaign' => $campaignAssignment !== null,
                     'campaign_name' => $campaignAssignment?->campaign?->name,
                 ],
-                'assignments' => $supervisorAssignments->map(fn($a) => [
+                'assignments' => $supervisorAssignments->values()->map(fn($a) => [
                     'id' => $a->id,
                     'model' => ['name' => $a->planningModel?->name ?? 'N/A'],
                     'start_date' => $a->start_date ? $a->start_date->format('d/m/Y') : 'N/A',
                     'end_date' => $a->end_date ? $a->end_date->format('d/m/Y') : 'N/A',
                     'status' => $a->status,
                 ]),
-                'teleconseillers' => $allTeleconseillers,
+                'teleconseillers' => $teleconseillers,
             ];
-        });
+        })->values();
 
         return Inertia::render('Planning/Assignments/Index', [
             'supervisorAssignments' => $supervisorAssignments,
@@ -147,17 +119,15 @@ class PlanningAssignmentController extends Controller
     {
         return Inertia::render('Planning/Assignments/Create', [
             'selected_supervisor_id' => $request->query('supervisor_id'),
-            'supervisors' => Employee::with('user.role')
-                            ->whereHas('user', function ($query) {
-                                $query->whereHas('role', function ($q) {
-                                    $q->where('name', 'sup');
-                                });
+            'supervisors' => Employee::with(['user.role', 'position'])
+                            ->whereHas('position', function ($query) {
+                                $query->where('code', 'SUP');
                             })
                             ->get()
                             ->map(fn($emp) => [
                                 'id' => $emp->id,
-                                'name' => $emp->user->name,
-                                'role' => $emp->user->role->name,
+                                'name' => $emp->user ? $emp->user->name : $emp->full_name,
+                                'role' => $emp->user ? $emp->user->role?->name : 'SUP',
                             ]),
             'models' => PlanningModel::all(['id', 'name', 'total_hours'])
         ]);
@@ -180,60 +150,54 @@ class PlanningAssignmentController extends Controller
 
         $supervisor = Employee::findOrFail($request->supervisor_id);
 
-        // Vérifier que le superviseur n'a pas déjà un planning sur cette période
-        $existingSupervisorPlanning = PlanningAssignment::where('employee_id', $supervisor->id)
-            ->where(function ($query) use ($request) {
-                $query->whereBetween('start_date', [$request->start_date, $request->end_date])
-                      ->orWhereBetween('end_date', [$request->start_date, $request->end_date]);
-            })
-            ->exists();
-
-        if ($existingSupervisorPlanning) {
-            return back()->withErrors(['supervisor_id' => 'Ce superviseur a déjà un planning sur cette période.']);
-        }
-
         // Identification automatique des agents sous la responsabilité du superviseur
         $teleconseillerIds = Assignment::where('manager_id', $supervisor->id)
             ->where('status', 'actif')
             ->pluck('employee_id');
 
-        // Préparation de la liste des bénéficiaires (Superviseur + ses Agents)
-        $employeesToAssign = collect([$supervisor])->merge(Employee::whereIn('id', $teleconseillerIds)->get());
+        // Liste de tous les bénéficiaires (Superviseur + ses Agents)
+        $employeesToAssignIds = collect([$supervisor->id])->merge($teleconseillerIds);
+
+        // Suppression des plannings existants sur la même période pour tous les bénéficiaires
+        // (Écrase les anciens plannings comme demandé)
+        PlanningAssignment::whereIn('employee_id', $employeesToAssignIds)
+            ->where(function ($query) use ($request) {
+                $query->whereBetween('start_date', [$request->start_date, $request->end_date])
+                      ->orWhereBetween('end_date', [$request->start_date, $request->end_date])
+                      ->orWhere(function($q) use ($request) {
+                          $q->where('start_date', '<=', $request->start_date)
+                            ->where('end_date', '>=', $request->end_date);
+                      });
+            })
+            ->delete();
+
+        $employeesToAssign = Employee::whereIn('id', $employeesToAssignIds)->get();
 
         foreach ($employeesToAssign as $employee) {
-            // Vérification de chevauchement de dates pour éviter les doubles plannings
-            $exists = PlanningAssignment::where('employee_id', $employee->id)
-                ->where(function ($query) use ($request) {
-                    $query->whereBetween('start_date', [$request->start_date, $request->end_date])
-                          ->orWhereBetween('end_date', [$request->start_date, $request->end_date]);
-                })->exists();
+            // Création de l'affectation avec le statut 'en attente' par défaut
+            $assignment = PlanningAssignment::create([
+                'employee_id' => $employee->id,
+                'planning_model_id' => $request->planning_model_id,
+                'start_date' => $request->start_date,
+                'end_date' => $request->end_date,
+                'created_by' => Auth::id(),
+                'status' => 'en attente',
+            ]);
 
-            if (!$exists) {
-                // Création de l'affectation avec le statut 'en attente' par défaut
-                $assignment = PlanningAssignment::create([
-                    'employee_id' => $employee->id,
-                    'planning_model_id' => $request->planning_model_id,
-                    'start_date' => $request->start_date,
-                    'end_date' => $request->end_date,
-                    'created_by' => Auth::id(),
-                    'status' => 'en attente',
-                ]);
-
-                // Enregistrement dans l'historique pour traçabilité
-                PlanningHistory::create([
-                    'planning_assignment_id' => $assignment->id,
-                    'old_status' => '',
-                    'new_status' => 'en attente',
-                    'changed_by' => Auth::id(),
-                    'reason' => $employee->id === $supervisor->id 
-                        ? 'Création de l\'affectation superviseur' 
-                        : 'Héritage automatique du planning superviseur',
-                ]);
-            }
+            // Enregistrement dans l'historique pour traçabilité
+            PlanningHistory::create([
+                'planning_assignment_id' => $assignment->id,
+                'old_status' => '',
+                'new_status' => 'en attente',
+                'changed_by' => Auth::id(),
+                'reason' => $employee->id === $supervisor->id 
+                    ? 'Création de l\'affectation superviseur (Écrasement si existant)' 
+                    : 'Héritage automatique du planning superviseur (Écrasement si existant)',
+            ]);
         }
 
         return redirect()->route('planning.assignments.index')
-            ->with('success', 'Affectations créées avec succès. En attente de validation.');
+            ->with('success', 'Affectations créées avec succès (les anciens plannings sur cette période ont été remplacés).');
     }
 
     /**
@@ -409,7 +373,7 @@ class PlanningAssignmentController extends Controller
      */
     public function history()
     {
-        $query = PlanningHistory::with(['planningAssignment.employee.user', 'changedBy'])
+        $query = PlanningHistory::with(['planningAssignment.employee.user', 'changedBy.employee'])
             ->orderBy('created_at', 'desc');
 
         // Filtrage de sécurité : les agents et superviseurs ne voient que ce qui les concerne
@@ -460,7 +424,7 @@ class PlanningAssignmentController extends Controller
     {
         $employee = auth()->user()->employee;
 
-        $assignments = PlanningAssignment::with(['planningModel', 'creator'])
+        $assignments = PlanningAssignment::with(['planningModel', 'creator.employee'])
             ->where('employee_id', $employee->id)
             ->orderBy('start_date', 'desc')
             ->get()
@@ -495,23 +459,34 @@ class PlanningAssignmentController extends Controller
             ->where('status', 'actif')
             ->pluck('employee_id');
 
+        $allAgents = Employee::with('user.role')
+            ->whereIn('id', $agentIds)
+            ->get();
+
         $assignments = PlanningAssignment::with(['employee.user', 'planningModel'])
             ->whereIn('employee_id', $agentIds)
             ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(fn($a) => [
-                'id' => $a->id,
+            ->get();
+
+        $teamData = $allAgents->map(function($agent) use ($assignments) {
+            $assignment = $assignments->where('employee_id', $agent->id)->first();
+            
+            return [
+                'id' => $assignment?->id,
                 'employee' => [
-                    'name' => $a->employee->user->name,
+                    'name' => $agent->user ? $agent->user->name : $agent->full_name,
+                    'role' => $agent->user ? $agent->user->role?->name : 'TC',
                 ],
-                'model' => ['name' => $a->planningModel?->name ?? 'N/A'],
-                'start_date' => $a->start_date ? $a->start_date->format('d/m/Y') : 'N/A',
-                'end_date' => $a->end_date ? $a->end_date->format('d/m/Y') : 'N/A',
-                'status' => $a->status,
-            ]);
+                'model' => ['name' => $assignment?->planningModel?->name ?? 'Aucun planning'],
+                'start_date' => $assignment?->start_date ? $assignment->start_date->format('d/m/Y') : 'N/A',
+                'end_date' => $assignment?->end_date ? $assignment->end_date->format('d/m/Y') : 'N/A',
+                'status' => $assignment?->status ?? 'non assigné',
+                'has_planning' => $assignment !== null,
+            ];
+        });
 
         return Inertia::render('Planning/Team', [
-            'assignments' => $assignments
+            'assignments' => $teamData
         ]);
     }
 

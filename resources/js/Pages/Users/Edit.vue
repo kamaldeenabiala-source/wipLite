@@ -43,6 +43,11 @@ const handleSubmit = () => {
     <div class="max-w-2xl mx-auto">
       <div class="bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-blue-100/50 p-8">
         <form @submit.prevent="handleSubmit" class="space-y-6">
+          <!-- <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+            <p class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Employé lié</p>
+            <p class="text-lg font-bold text-slate-800">{{ user.name }}</p>
+          </div> -->
+
           <div>
             <label class="block text-sm font-semibold text-slate-700 mb-2">Email</label>
             <input

@@ -129,15 +129,12 @@ const closeDialog = () => {
 
 const submitForm = () => {
     submitted.value = true;
-    const data = {
-        ...form.data(),
-        birth_date: form.birth_date
-            ? new Date(form.birth_date).toISOString().split("T")[0]
-            : null,
-    };
+    form.birth_date = form.birth_date
+        ? new Date(form.birth_date).toISOString().split("T")[0]
+        : null;
 
     if (isEditing.value) {
-        form.transform(() => data).put(route("employees.update", form.id), {
+        form.put(route("employees.update", form.id), {
             preserveScroll: true,
             onSuccess: () => {
                 toast.add({ severity: "success", summary: "Mis à jour", detail: "Employé mis à jour.", life: 3000 });
@@ -145,7 +142,7 @@ const submitForm = () => {
             },
         });
     } else {
-        form.transform(() => data).post(route("employees.store"), {
+        form.post(route("employees.store"), {
             preserveScroll: true,
             onSuccess: () => {
                 toast.add({ severity: "success", summary: "Créé", detail: "Employé créé avec succès.", life: 3000 });
@@ -377,12 +374,12 @@ const toggleStatus = (employee) => {
                             class="mr-2"
                             @click="openEdit(data)"
                         />
-                         <Button 
-                            :icon="data.status === 'inactif' ? 'pi pi-refresh' : 'pi pi-ban'" 
+                         <Button
+                            :icon="data.status === 'inactif' ? 'pi pi-refresh' : 'pi pi-ban'"
                             :severity="data.status === 'inactif' ? 'success' : 'danger'"
-                            variant="outlined" 
-                            rounded 
-                            @click="toggleStatus(data)" 
+                            variant="outlined"
+                            rounded
+                            @click="toggleStatus(data)"
                         />
                     </template>
                 </Column>
@@ -393,7 +390,7 @@ const toggleStatus = (employee) => {
         <!-- DIALOG — Formulaire Créer / Modifier             -->
         <!-- ================================================ -->
         <Dialog
-            v-model="dialogVisible"
+            v-model:visible="dialogVisible"
             :header="isEditing ? 'Modifier l\'employé' : 'Nouvel employé'"
             :style="{ width: '650px' }"
             :modal="true"

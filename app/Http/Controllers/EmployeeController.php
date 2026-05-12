@@ -70,10 +70,7 @@ class EmployeeController extends Controller
      */
     public function create()
     {
-        return Inertia::render('Employees/Create', [
-            'positions' => Position::all(),
-            'statuses'  => Employee::$statuses,
-        ]);
+        return redirect()->route('employees.index');
     }
 
     /**
@@ -129,13 +126,7 @@ class EmployeeController extends Controller
      */
     public function edit(Employee $employee)
     {
-        $employee->load('position', 'user');
-
-        return Inertia::render('Employees/Edit', [
-            'employee'  => $employee,
-            'positions' => Position::all(),
-            'statuses'  => Employee::$statuses,
-        ]);
+        return redirect()->route('employees.index');
     }
 
     /**
