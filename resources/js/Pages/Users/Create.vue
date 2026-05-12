@@ -8,7 +8,6 @@ const props = defineProps({
 });
 
 const form = useForm({
-  name: '',
   email: '',
   password: '',
   role_id: '',
@@ -43,17 +42,6 @@ const handleSubmit = () => {
     <div class="max-w-2xl mx-auto">
       <div class="bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-blue-100/50 p-8">
         <form @submit.prevent="handleSubmit" class="space-y-6">
-          <div>
-            <label class="block text-sm font-semibold text-slate-700 mb-2">Nom complet</label>
-            <input
-              v-model="form.name"
-              type="text"
-              class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/50 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              placeholder="Nom et prénom"
-            />
-            <div v-if="form.errors.name" class="text-red-500 text-sm mt-1">{{ form.errors.name }}</div>
-          </div>
-
           <div>
             <label class="block text-sm font-semibold text-slate-700 mb-2">Email</label>
             <input

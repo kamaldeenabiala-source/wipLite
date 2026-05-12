@@ -22,7 +22,6 @@ public function run(): void
 
         // 2. Créer un Admin spécifique pour se connecter
         User::factory()->create([
-            'name' => 'Admin User',
             'email' => 'admin@test.com',
             'role_id' => $roles->where('name', 'admin')->first()->id,
             'password' => Hash::make('1234'),

@@ -580,10 +580,12 @@ const logout = () => {
             <template #trigger>
               <button class="flex items-center gap-4 p-1 pr-4 rounded-full hover:bg-slate-50 transition-all group">
                 <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black text-sm shadow-md group-hover:scale-105 transition-transform">
-                  {{ page.props.auth?.user?.name?.charAt(0)?.toUpperCase() ?? 'U' }}
+                  {{ page.props.auth?.employee?.first_name?.charAt(0)?.toUpperCase() ?? page.props.auth?.user?.email?.charAt(0)?.toUpperCase() ?? 'U' }}
                 </div>
                 <div class="text-left hidden sm:block">
-                  <p class="text-sm font-black text-slate-800 leading-none">{{ page.props.auth?.user?.name }}</p>
+                  <p class="text-sm font-black text-slate-800 leading-none">
+                    {{ page.props.auth?.employee?.first_name }} {{ page.props.auth?.employee?.last_name }}
+                  </p>
                   <p class="text-[10px] font-bold text-blue-500 uppercase tracking-tighter mt-1">{{ page.props.auth?.role }}</p>
                 </div>
                 <ChevronDown class="w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-colors ml-2" />
